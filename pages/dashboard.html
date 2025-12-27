@@ -1,1 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Кабинет</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+
+<h2>Личный кабинет</h2>
+
+<div id="profile"></div>
+
+<button onclick="startHunt()">Начать</button>
+
+<script>
+    const user = JSON.parse(localStorage.getItem('tg_user'));
+
+    document.getElementById('profile').innerHTML = `
+        <p>ID: ${user.id}</p>
+        <p>Ник: ${user.username || '-'}</p>
+        <p>Время в игре: <span id="time">0</span> мин</p>
+    `;
+
+    let minutes = Number(localStorage.getItem('minutes') || 0);
+
+    setInterval(() => {
+        minutes++;
+        localStorage.setItem('minutes', minutes);
+        document.getElementById('time').innerText = minutes;
+    }, 60000);
+
+    function startHunt() {
+        window.location.href = 'hunt.html';
+    }
+</script>
+
+</body>
+</html>
 
