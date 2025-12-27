@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="../css/main.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <style>
     .wrap{max-width:980px;margin:0 auto;}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -16,8 +17,11 @@
     .kv{display:flex;justify-content:space-between;border-bottom:1px dashed rgba(0,255,153,.25);padding:6px 0;}
     .kv:last-child{border-bottom:none;}
     .pill{padding:2px 8px;border:1px solid #00ff99;border-radius:999px;font-size:12px;}
-    .adminBtn{border-color:#ffd166;color:#ffd166}
     .btnWide{min-width:220px}
+
+    .ok{color:#00ff99}
+    .bad{color:#ff6b6b;border-color:#ff6b6b}
+
     .navBar{
       position:fixed;left:0;right:0;bottom:0;
       padding:10px;background:rgba(11,11,11,.95);
@@ -25,38 +29,49 @@
       display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
     }
     body{padding-bottom:90px;}
+
+    /* БЕГУЩАЯ СТРОКА */
+    .ticker {
+      white-space: nowrap;
+      overflow: hidden;
+      position: relative;
+    }
+    #tickerContent {
+      display: inline-block;
+      padding-left: 100%;
+      animation: tickerMove 18s linear infinite;
+    }
+    @keyframes tickerMove {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+
+    /* ЭМИССИЯ */
+    .progressWrap {
+      width: 100%;
+      height: 14px;
+      background: rgba(0,255,153,0.15);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progressBar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #00ff99, #00ccff);
+      transition: width 0.6s ease;
+    }
+
+    /* ADMIN button */
+    .adminBtn{border-color:#ffd166;color:#ffd166}
   </style>
-  .ticker {
-  white-space: nowrap;
-  overflow: hidden;
-  position: relative;
-}
-
-#tickerContent {
-  display: inline-block;
-  padding-left: 100%;
-  animation: tickerMove 18s linear infinite;
-}
-
-@keyframes tickerMove {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
-}
-
 </head>
 
 <body>
 <div class="wrap">
   <h2>👤 Кабинет</h2>
-<!-- Бегущая строка событий -->
-<div class="card" style="overflow:hidden;">
-  <div id="ticker" class="ticker">
-    <div id="tickerContent">
-      🔔 Загрузка событий...
-    </div>
-  </div>
-</div>
 
+  <!-- Профиль -->
   <div class="card">
     <div class="row" style="justify-content:space-between;">
       <div>
@@ -73,6 +88,14 @@
     </div>
   </div>
 
+  <!-- Бегущая строка (вернули) -->
+  <div class="card" style="margin-top:12px; overflow:hidden;">
+    <div class="ticker">
+      <div id="tickerContent">🔔 Загрузка событий...</div>
+    </div>
+  </div>
+
+  <!-- Прогресс + Балансы -->
   <div class="grid2" style="margin-top:12px;">
     <div class="card">
       <div class="title">📊 Прогресс</div>
@@ -83,19 +106,48 @@
     </div>
 
     <div class="card">
-      <div class="title">💰 Балансы (тест)</div>
-      <div class="kv"><span class="muted">3MCoin</span><span><b id="mmcoin">0</b></span></div>
+      <div class="title">💰 Балансы</div>
+      <div class="kv"><span class="muted">MMMcoin</span><span><b id="mmcoin">0</b></span></div>
       <div class="kv"><span class="muted">TON</span><span><b id="ton">0</b></span></div>
       <div class="kv"><span class="muted">USDT</span><span><b id="usdt">0</b></span></div>
       <div class="kv"><span class="muted">Stars</span><span><b id="stars">0</b></span></div>
     </div>
   </div>
 
+  <!-- ВИЗУАЛЬНАЯ ЭМИССИЯ (30000000.000) -->
+  <div class="card" style="margin-top:12px;">
+    <div class="title">📈 Эмиссия MMMcoin</div>
+
+    <div class="kv">
+      <span class="muted">Всего</span>
+      <span><b id="mmmTotal">30 000 000.000</b></span>
+    </div>
+
+    <div class="kv">
+      <span class="muted">В обращении</span>
+      <span><b id="mmmUsed">0.000</b></span>
+    </div>
+
+    <div class="kv">
+      <span class="muted">Осталось</span>
+      <span><b id="mmmLeft">30 000 000.000</b></span>
+    </div>
+
+    <div class="progressWrap">
+      <div id="mmmBar" class="progressBar"></div>
+    </div>
+
+    <div class="muted" style="margin-top:8px;">
+      Сейчас “в обращении” считается как сумма MMMcoin по пользователям (локально). Позже подключим к серверу/БД.
+    </div>
+  </div>
+
+  <!-- Меню -->
   <div class="card" style="margin-top:12px;">
     <div class="title">🎮 Меню</div>
     <div class="row">
       <button class="btnWide" onclick="location.href='hunt.html'">▶️ Начать</button>
-      <button class="btnWide" onclick="location.href='mmcoin.html'">💠 3MCoin</button>
+      <button class="btnWide" onclick="location.href='mmcoin.html'">💠 MMMcoin</button>
       <button class="btnWide" onclick="location.href='leaderboard.html'">🏆 Топ</button>
     </div>
     <div class="muted" style="margin-top:8px;">
@@ -110,33 +162,27 @@
 </div>
 
 <script>
-  function renderTicker() {
-  const feed = [
-    "Пользователь получил 0.5 TON",
-    "Найдено 200 USDT",
-    "Апгрейд генератора до lvl 2",
-    "Система: тестовый режим активен"
-  ];
-  document.getElementById("tickerContent").innerText =
-    feed.join("   •   ");
-}
+  // ================== НАСТРОЙКИ ==================
+  // ВПИШИ СВОЙ Telegram ID (число), чтобы видеть кнопку ADMIN
+  const ADMIN_ID = 0;
 
-renderTicker();
-
-  // ВПИШИ СВОЙ ID (получишь через /myid в боте)
-  const ADMIN_ID = 1901263391;
-
+  // ================== TELEGRAM ==================
   const tg = window.Telegram?.WebApp;
   tg?.ready?.();
+  tg?.expand?.();
 
   function getTgUser() {
     const u = tg?.initDataUnsafe?.user;
-    if (u && u.id) return {
-      id: u.id,
-      username: u.username || "",
-      first_name: u.first_name || "",
-      last_name: u.last_name || ""
-    };
+    if (u && u.id) {
+      const obj = {
+        id: u.id,
+        username: u.username || "",
+        first_name: u.first_name || "",
+        last_name: u.last_name || ""
+      };
+      localStorage.setItem("tg_user", JSON.stringify(obj));
+      return obj;
+    }
     try {
       const cached = JSON.parse(localStorage.getItem("tg_user") || "null");
       if (cached && cached.id) return cached;
@@ -144,6 +190,7 @@ renderTicker();
     return { id: 999000, username: "browser_test", first_name: "Browser", last_name: "" };
   }
 
+  // ================== STORAGE USERS ==================
   const USERS_KEY = "wh_users";
 
   function loadUsers() {
@@ -169,10 +216,13 @@ renderTicker();
         total_active_ms: 0,
         win_chance: 1.0,
         generator_level: 0,
-        bal_mmcoin: 0,
+
+        // balances
+        bal_mmcoin: 0,  // внутреннее имя оставляем, в UI показываем MMMcoin
         bal_ton: 0,
         bal_usdt: 0,
         bal_stars: 0,
+
         wallet_linked: false
       };
     }
@@ -186,19 +236,65 @@ renderTicker();
     return users[id];
   }
 
-  // считаем время “в приложении”
-  let sessionStart = Date.now();
-  function flushTime(userObj) {
+  // ================== TIME IN APP ==================
+  let sessionStart = null;
+
+  function startSession() {
+    if (sessionStart === null) sessionStart = Date.now();
+  }
+
+  function stopSessionAndAccumulate(userObj) {
+    if (sessionStart === null) return;
     const delta = Date.now() - sessionStart;
-    sessionStart = Date.now();
+    sessionStart = null;
+
     const users = loadUsers();
     const id = String(userObj.id);
     if (!users[id]) return;
+
     users[id].total_active_ms = Number(users[id].total_active_ms || 0) + Math.max(0, delta);
     users[id].last_seen = Date.now();
     saveUsers(users);
   }
 
+  // ================== TICKER (вернули) ==================
+  function renderTicker() {
+    // Пока фейковая лента. Позже подключим к серверу/БД.
+    const feed = [
+      "Система: тестовый режим активен",
+      "Кто-то улучшил генератор до lvl 2",
+      "Найдено 20 USDT",
+      "Пользователь получил 0.5 TON"
+    ];
+    const el = document.getElementById("tickerContent");
+    if (el) el.textContent = "🔔 " + feed.join("   •   ");
+  }
+
+  // ================== MMMcoin EMISSION ==================
+  const MMM_TOTAL = 30000000.0; // 30 000 000.000
+
+  function calcMMMEmission() {
+    let used = 0.0;
+    try {
+      const users = loadUsers();
+      for (const id in users) {
+        used += Number(users[id].bal_mmcoin || 0);
+      }
+    } catch {}
+
+    const left = Math.max(0, MMM_TOTAL - used);
+    const percent = MMM_TOTAL <= 0 ? 0 : Math.min(100, (used / MMM_TOTAL) * 100);
+
+    const usedEl = document.getElementById("mmmUsed");
+    const leftEl = document.getElementById("mmmLeft");
+    const barEl = document.getElementById("mmmBar");
+
+    if (usedEl) usedEl.textContent = used.toFixed(3);
+    if (leftEl) leftEl.textContent = left.toFixed(3);
+    if (barEl) barEl.style.width = percent.toFixed(6) + "%";
+  }
+
+  // ================== RENDER UI ==================
   const tgUser = getTgUser();
   const userObj = ensureUser(tgUser);
 
@@ -208,7 +304,15 @@ renderTicker();
     document.getElementById("uSub").textContent = `ID: ${tgUser.id}`;
 
     const ws = document.getElementById("walletStatus");
-    ws.textContent = userObj.wallet_linked ? "Кошелёк: ✅ привязан" : "Кошелёк: ❌ не привязан";
+    if (userObj.wallet_linked) {
+      ws.textContent = "Кошелёк: ✅ привязан";
+      ws.classList.remove("bad");
+      ws.classList.add("ok");
+    } else {
+      ws.textContent = "Кошелёк: ❌ не привязан";
+      ws.classList.remove("ok");
+      ws.classList.add("bad");
+    }
 
     document.getElementById("launches").textContent = String(userObj.launches || 1);
     document.getElementById("winChance").textContent = String(Number(userObj.win_chance || 1.0).toFixed(1));
@@ -222,29 +326,50 @@ renderTicker();
     const mins = Math.floor(Number(userObj.total_active_ms || 0) / 60000);
     document.getElementById("timeMin").textContent = String(mins);
 
+    // ADMIN кнопка только тебе
     if (Number(tgUser.id) === Number(ADMIN_ID) && ADMIN_ID !== 0) {
       document.getElementById("adminBtn").style.display = "inline-block";
     } else {
       document.getElementById("adminBtn").style.display = "none";
     }
+
+    // эмиссия
+    calcMMMEmission();
   }
 
+  // старт
+  renderTicker();
+  startSession();
   render();
 
-  // раз в 10 секунд сохраняем активное время
+  // обновления
   setInterval(() => {
-    flushTime(userObj);
+    // подтягиваем возможные изменения (если админка правила localStorage)
     const users = loadUsers();
     const refreshed = users[String(tgUser.id)];
     if (refreshed) Object.assign(userObj, refreshed);
+
+    // виртуально добавляем "сессию" к отображению минут
+    if (sessionStart !== null) {
+      const virtualTotal = Number(userObj.total_active_ms || 0) + (Date.now() - sessionStart);
+      document.getElementById("timeMin").textContent = String(Math.floor(virtualTotal / 60000));
+    }
+
+    renderTicker();
     render();
   }, 10000);
 
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") flushTime(userObj);
+    if (document.visibilityState === "hidden") {
+      stopSessionAndAccumulate(userObj);
+    } else {
+      startSession();
+      renderTicker();
+      render();
+    }
   });
 
-  window.addEventListener("beforeunload", () => flushTime(userObj));
+  window.addEventListener("beforeunload", () => stopSessionAndAccumulate(userObj));
 </script>
 </body>
 </html>
