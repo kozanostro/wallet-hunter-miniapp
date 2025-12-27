@@ -1,1 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+
+<h2>Регистрация</h2>
+<p id="userInfo"></p>
+
+<button id="registerBtn">Продолжить</button>
+
+<script>
+    const user = JSON.parse(localStorage.getItem('tg_user'));
+    document.getElementById('userInfo').innerText =
+        `Пользователь: ${user.username || user.first_name} (ID: ${user.id})`;
+
+    document.getElementById('registerBtn').onclick = () => {
+        localStorage.setItem('registered', 'true');
+        window.location.href = 'dashboard.html';
+    };
+</script>
+
+</body>
+</html>
 
