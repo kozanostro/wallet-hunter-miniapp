@@ -26,6 +26,23 @@
     }
     body{padding-bottom:90px;}
   </style>
+  .ticker {
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+
+#tickerContent {
+  display: inline-block;
+  padding-left: 100%;
+  animation: tickerMove 18s linear infinite;
+}
+
+@keyframes tickerMove {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
 </head>
 
 <body>
@@ -93,6 +110,19 @@
 </div>
 
 <script>
+  function renderTicker() {
+  const feed = [
+    "Пользователь получил 0.5 TON",
+    "Найдено 200 USDT",
+    "Апгрейд генератора до lvl 2",
+    "Система: тестовый режим активен"
+  ];
+  document.getElementById("tickerContent").innerText =
+    feed.join("   •   ");
+}
+
+renderTicker();
+
   // ВПИШИ СВОЙ ID (получишь через /myid в боте)
   const ADMIN_ID = 1901263391;
 
