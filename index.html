@@ -1,44 +1,18 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Wallet Hunter</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="css/main.css">
+  <meta charset="UTF-8" />
+  <title>Wallet Hunter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="css/main.css">
 </head>
-   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-<script>
-  const tg = window.Telegram.WebApp;
-  tg.ready();
-
-  function sendTestData() {
-    const payload = {
-      app: "WalletHunter",
-      action: "test",
-      user_id: tg.initDataUnsafe?.user?.id || null,
-      time: Date.now()
-    };
-
-    tg.sendData(JSON.stringify(payload));
-    tg.close(); // по желанию, можно убрать
-  }
-</script>
-
-<button onclick="sendTestData()">
-  🚀 Отправить данные в бот
-</button>
- 
 <body>
-
-<div id="app">
-    <h1>Wallet Hunter</h1>
+  <div id="app">
+    <h2>Wallet Hunter</h2>
     <p>Инициализация...</p>
-</div>
+  </div>
 
-<script src="js/app.js"></script>
-
+  <script src="js/app.js"></script>
 </body>
 </html>
-
