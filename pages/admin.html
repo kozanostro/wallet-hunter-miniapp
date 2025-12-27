@@ -1,1 +1,363 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>WalletHunter — Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    .wrap{max-width:1100px;margin:0 auto;}
+    .card{border:1px solid #00ff99;border-radius:12px;padding:12px;text-align:left;margin:12px 0;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .muted{opacity:.75}
+    .title{font-size:18px;font-weight:800;margin:0 0 6px 0;}
+    input, select{
+      padding:10px;border-radius:10px;border:1px solid rgba(0,255,153,.6);
+      background:#0b0b0b;color:#00ff99;outline:none;
+    }
+    input{min-width:180px;}
+    table{width:100%;border-collapse:collapse;margin-top:10px;}
+    th, td{border-bottom:1px dashed rgba(0,255,153,.25);padding:8px;text-align:left;vertical-align:top;}
+    th{font-weight:800;}
+    .btnSm{padding:10px 14px}
+    .danger{border-color:#ff6b6b;color:#ff6b6b}
+    .ok{color:#00ff99}
+    .navBar{
+      position:fixed;left:0;right:0;bottom:0;
+      padding:10px;background:rgba(11,11,11,.95);
+      border-top:1px solid #00ff99;
+      display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+    }
+    body{padding-bottom:90px;}
+    .pill{padding:2px 8px;border:1px solid #00ff99;border-radius:999px;font-size:12px;}
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <h2>🔧 Admin Panel</h2>
+
+  <div id="denied" class="card" style="display:none;">
+    <div class="title">Доступ запрещён</div>
+    <div class="muted">
+      Эта страница видна только администратору (по Telegram ID) + пароль.
+    </div>
+    <div style="margin-top:10px;">
+      <button onclick="location.href='dashboard.html'">Назад</button>
+    </div>
+  </div>
+
+  <div id="login" class="card" style="display:none;">
+    <div class="title">Вход (пароль)</div>
+    <div class="muted">Пароль хранится локально в браузере/Telegram WebView (пока MVP).</div>
+
+    <div class="row" style="margin-top:10px;">
+      <input id="pwd" type="password" placeholder="Пароль" />
+      <button class="btnSm" id="btnLogin">Войти</button>
+      <button class="btnSm danger" id="btnSetPwd">Установить/сменить пароль</button>
+    </div>
+
+    <div class="muted" style="margin-top:8px;" id="pwdHint">—</div>
+  </div>
+
+  <div id="panel" style="display:none;">
+    <div class="card">
+      <div class="title">⚙️ Глобальные тайминги Hunt</div>
+      <div class="muted">Эти значения влияют на текущий `hunt.js` (глобально).</div>
+
+      <div class="row" style="margin-top:10px;">
+        <label class="muted">Поиск кошелька (сек):</label>
+        <input id="globWalletSec" type="number" min="1" value="30" />
+        <label class="muted">Сид-фразы (сек):</label>
+        <input id="globSeedSec" type="number" min="1" value="20" />
+        <button class="btnSm" id="btnSaveGlobal">Сохранить</button>
+      </div>
+
+      <div class="muted" style="margin-top:8px;">
+        (Позже сделаем персонально на пользователя — но MVP уже тестируется.)
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div class="title">👥 Реестр пользователей</div>
+          <div class="muted">Можно править балансы, % выигрыша, генератор.</div>
+        </div>
+        <div class="row">
+          <span class="pill">users: <b id="usersCount">0</b></span>
+          <button class="btnSm" id="btnRefresh">Обновить</button>
+          <button class="btnSm danger" id="btnWipeFeed">Очистить ленту</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:170px;">User</th>
+            <th style="width:120px;">Win %</th>
+            <th style="width:120px;">Gen lvl</th>
+            <th>Balances</th>
+            <th style="width:180px;">Time/Meta</th>
+            <th style="width:160px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="navBar">
+  <button onclick="location.href='dashboard.html'">На главную</button>
+</div>
+
+<script>
+  // ========= НАСТРОЙКИ =========
+  // ВАЖНО: должно совпадать с dashboard.html
+  const ADMIN_ID = 1901263391; // <-- ВПИШИ СВОЙ Telegram ID
+
+  // ========= STORAGE =========
+  const USERS_KEY = "wh_users";
+  const ADMIN_PWD_KEY = "wh_admin_password";
+  const FEED_KEY = "wh_feed";
+
+  const GLOBAL_WALLET_MS_KEY = "hunt_wallet_duration_ms";
+  const GLOBAL_SEED_MS_KEY = "hunt_seed_duration_ms";
+
+  const tg = window.Telegram?.WebApp;
+  tg?.ready?.();
+
+  function getTgUser() {
+    const u = tg?.initDataUnsafe?.user;
+    if (u && u.id) return u;
+    try { return JSON.parse(localStorage.getItem("tg_user") || "null") || { id: 0 }; } catch { return { id: 0 }; }
+  }
+
+  function loadUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function saveUsers(obj) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(obj));
+  }
+
+  function getAdminPwd() {
+    return (localStorage.getItem(ADMIN_PWD_KEY) || "").trim();
+  }
+  function setAdminPwd(p) {
+    localStorage.setItem(ADMIN_PWD_KEY, String(p || "").trim());
+  }
+
+  function addFeed(msg) {
+    let feed = [];
+    try { feed = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch {}
+    feed.unshift(msg);
+    feed = feed.slice(0, 30);
+    localStorage.setItem(FEED_KEY, JSON.stringify(feed));
+  }
+
+  // ========= AUTH =========
+  const tgUser = getTgUser();
+  const isAdminById = (Number(tgUser?.id || 0) === Number(ADMIN_ID)) && ADMIN_ID !== 0;
+
+  const deniedEl = document.getElementById("denied");
+  const loginEl = document.getElementById("login");
+  const panelEl = document.getElementById("panel");
+
+  function showDenied() {
+    deniedEl.style.display = "block";
+    loginEl.style.display = "none";
+    panelEl.style.display = "none";
+  }
+
+  function showLogin() {
+    deniedEl.style.display = "none";
+    loginEl.style.display = "block";
+    panelEl.style.display = "none";
+
+    const hint = document.getElementById("pwdHint");
+    const cur = getAdminPwd();
+    hint.textContent = cur ? "Пароль уже установлен." : "Пароль не установлен — нажми «Установить/сменить пароль».";
+  }
+
+  function showPanel() {
+    deniedEl.style.display = "none";
+    loginEl.style.display = "none";
+    panelEl.style.display = "block";
+    loadGlobalTimersToUI();
+    renderUsersTable();
+  }
+
+  if (!isAdminById) {
+    showDenied();
+  } else {
+    showLogin();
+  }
+
+  // ========= LOGIN ACTIONS =========
+  document.getElementById("btnLogin").onclick = () => {
+    const entered = (document.getElementById("pwd").value || "").trim();
+    const cur = getAdminPwd();
+    if (!cur) {
+      alert("Пароль не установлен. Нажми «Установить/сменить пароль».");
+      return;
+    }
+    if (entered !== cur) {
+      alert("Неверный пароль.");
+      return;
+    }
+    showPanel();
+  };
+
+  document.getElementById("btnSetPwd").onclick = () => {
+    const entered = (document.getElementById("pwd").value || "").trim();
+    if (entered.length < 4) {
+      alert("Пароль минимум 4 символа.");
+      return;
+    }
+    setAdminPwd(entered);
+    alert("Пароль сохранён.");
+    showPanel();
+  };
+
+  // ========= GLOBAL TIMERS =========
+  function loadGlobalTimersToUI() {
+    const wMs = Number(localStorage.getItem(GLOBAL_WALLET_MS_KEY) || 30000);
+    const sMs = Number(localStorage.getItem(GLOBAL_SEED_MS_KEY) || 20000);
+    document.getElementById("globWalletSec").value = String(Math.max(1, Math.round(wMs / 1000)));
+    document.getElementById("globSeedSec").value = String(Math.max(1, Math.round(sMs / 1000)));
+  }
+
+  document.getElementById("btnSaveGlobal").onclick = () => {
+    const wSec = Number(document.getElementById("globWalletSec").value || 30);
+    const sSec = Number(document.getElementById("globSeedSec").value || 20);
+    localStorage.setItem(GLOBAL_WALLET_MS_KEY, String(Math.max(1, wSec) * 1000));
+    localStorage.setItem(GLOBAL_SEED_MS_KEY, String(Math.max(1, sSec) * 1000));
+    addFeed(`Админ: обновил тайминги Hunt (wallet=${wSec}s, seed=${sSec}s)`);
+    alert("Сохранено.");
+  };
+
+  // ========= USERS TABLE =========
+  document.getElementById("btnRefresh").onclick = () => renderUsersTable();
+
+  document.getElementById("btnWipeFeed").onclick = () => {
+    localStorage.setItem(FEED_KEY, JSON.stringify([]));
+    alert("Лента очищена.");
+  };
+
+  function renderUsersTable() {
+    const users = loadUsers();
+    const ids = Object.keys(users);
+    document.getElementById("usersCount").textContent = String(ids.length);
+
+    const tb = document.getElementById("usersTbody");
+    tb.innerHTML = "";
+
+    ids.sort((a,b) => (users[b].last_seen||0) - (users[a].last_seen||0));
+
+    for (const id of ids) {
+      const u = users[id];
+
+      const tr = document.createElement("tr");
+
+      const userCell = document.createElement("td");
+      userCell.innerHTML = `
+        <div><b>${u.username ? "@"+u.username : (u.name || "user")}</b></div>
+        <div class="muted">ID: ${u.id}</div>
+      `;
+      tr.appendChild(userCell);
+
+      const winCell = document.createElement("td");
+      winCell.innerHTML = `<input type="number" step="0.1" min="0" value="${Number(u.win_chance || 1.0).toFixed(1)}" data-k="win_chance" data-id="${id}">`;
+      tr.appendChild(winCell);
+
+      const genCell = document.createElement("td");
+      genCell.innerHTML = `<input type="number" step="1" min="0" value="${Number(u.generator_level || 0)}" data-k="generator_level" data-id="${id}">`;
+      tr.appendChild(genCell);
+
+      const balCell = document.createElement("td");
+      balCell.innerHTML = `
+        <div class="row">
+          <label class="muted">3MC:</label><input type="number" step="1" value="${Number(u.bal_mmcoin||0)}" data-k="bal_mmcoin" data-id="${id}">
+          <label class="muted">TON:</label><input type="number" step="0.01" value="${Number(u.bal_ton||0)}" data-k="bal_ton" data-id="${id}">
+          <label class="muted">USDT:</label><input type="number" step="0.01" value="${Number(u.bal_usdt||0)}" data-k="bal_usdt" data-id="${id}">
+          <label class="muted">Stars:</label><input type="number" step="1" value="${Number(u.bal_stars||0)}" data-k="bal_stars" data-id="${id}">
+        </div>
+      `;
+      tr.appendChild(balCell);
+
+      const metaCell = document.createElement("td");
+      const mins = Math.floor(Number(u.total_active_ms||0)/60000);
+      metaCell.innerHTML = `
+        <div class="muted">Время: <b class="ok">${mins}</b> мин</div>
+        <div class="muted">Запуски: <b>${u.launches||0}</b></div>
+      `;
+      tr.appendChild(metaCell);
+
+      const actCell = document.createElement("td");
+      actCell.innerHTML = `
+        <div class="row">
+          <button class="btnSm" data-act="save" data-id="${id}">Сохранить</button>
+          <button class="btnSm danger" data-act="resetHunt" data-id="${id}">Сброс Hunt</button>
+        </div>
+      `;
+      tr.appendChild(actCell);
+
+      tb.appendChild(tr);
+    }
+
+    // делегируем клики
+    tb.onclick = (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const act = btn.getAttribute("data-act");
+      const id = btn.getAttribute("data-id");
+      if (!id) return;
+
+      if (act === "save") {
+        saveUserRow(id);
+      } else if (act === "resetHunt") {
+        resetHuntForUser(id);
+      }
+    };
+  }
+
+  function saveUserRow(id) {
+    const users = loadUsers();
+    if (!users[id]) return;
+
+    // читаем все input по этому пользователю
+    const inputs = document.querySelectorAll(`input[data-id="${id}"]`);
+    for (const inp of inputs) {
+      const k = inp.getAttribute("data-k");
+      if (!k) continue;
+      const val = Number(inp.value);
+      users[id][k] = isNaN(val) ? users[id][k] : val;
+    }
+
+    saveUsers(users);
+
+    const u = users[id];
+    addFeed(`Админ: обновил пользователя ${u.username ? "@"+u.username : u.id} (win=${Number(u.win_chance||0).toFixed(1)}%, gen=${u.generator_level||0})`);
+    alert("Сохранено.");
+  }
+
+  function resetHuntForUser(id) {
+    // В текущем MVP hunt хранится глобально в localStorage.
+    // Поэтому "сброс" — глобальный. Позже сделаем пер-юзер ключи.
+    localStorage.removeItem("hunt_phase");
+    localStorage.removeItem("hunt_wallet_endAt");
+    localStorage.removeItem("hunt_seed_endAt");
+    localStorage.removeItem("hunt_fake_addr");
+    localStorage.removeItem("hunt_fake_seed");
+    localStorage.removeItem("hunt_reward");
+    addFeed(`Админ: сбросил Hunt цикл (глобально)`);
+    alert("Hunt сброшен (глобально).");
+  }
+</script>
+</body>
+</html>
 
