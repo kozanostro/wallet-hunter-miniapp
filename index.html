@@ -7,6 +7,29 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="css/main.css">
 </head>
+   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+
+  function sendTestData() {
+    const payload = {
+      app: "WalletHunter",
+      action: "test",
+      user_id: tg.initDataUnsafe?.user?.id || null,
+      time: Date.now()
+    };
+
+    tg.sendData(JSON.stringify(payload));
+    tg.close(); // по желанию, можно убрать
+  }
+</script>
+
+<button onclick="sendTestData()">
+  🚀 Отправить данные в бот
+</button>
+ 
 <body>
 
 <div id="app">
