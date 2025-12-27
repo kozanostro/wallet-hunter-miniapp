@@ -6,96 +6,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="../css/main.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-   <style>
-  body {
-    font-size: 13px;
-  }
 
-  .wrap {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
-  .card {
-    border: 1px solid #00ff99;
-    border-radius: 10px;
-    padding: 8px;
-    margin: 8px 0;
-  }
-
-  .title {
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .muted {
-    opacity: .7;
-    font-size: 12px;
-  }
-
-  .row {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  input {
-    padding: 4px 6px;
-    border-radius: 6px;
-    border: 1px solid rgba(0,255,153,.6);
-    background: #0b0b0b;
-    color: #00ff99;
-    font-size: 12px;
-    width: 80px;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-
-  th, td {
-    padding: 4px 6px;
-    border-bottom: 1px dashed rgba(0,255,153,.25);
-    vertical-align: top;
-  }
-
-  th {
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .btnSm {
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-
-  .danger {
-    border-color: #ff6b6b;
-    color: #ff6b6b;
-  }
-
-  .navBar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 6px;
-    background: rgba(11,11,11,.95);
-    border-top: 1px solid #00ff99;
-    display: flex;
-    justify-content: center;
-  }
-
-  body {
-    padding-bottom: 60px;
-  }
-</style>
-
-   
+  <style>
+    body { font-size: 13px; padding-bottom: 60px; }
+    .wrap { max-width: 900px; margin: 0 auto; }
+    .card { border: 1px solid #00ff99; border-radius: 10px; padding: 8px; margin: 8px 0; text-align:left; }
+    .title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .muted { opacity: .7; font-size: 12px; }
+    .row { display:flex; gap: 6px; flex-wrap: wrap; align-items:center; }
+    input {
+      padding: 4px 6px; border-radius: 6px;
+      border: 1px solid rgba(0,255,153,.6);
+      background:#0b0b0b; color:#00ff99;
+      font-size: 12px; width: 90px; outline:none;
+    }
+    table { width:100%; border-collapse: collapse; font-size:12px; }
+    th, td { padding: 4px 6px; border-bottom: 1px dashed rgba(0,255,153,.25); vertical-align: top; }
+    th { font-weight:700; white-space:nowrap; }
+    .btnSm { padding: 4px 8px; font-size: 12px; }
+    .danger { border-color:#ff6b6b; color:#ff6b6b; }
+    .navBar {
+      position: fixed; left:0; right:0; bottom:0;
+      padding: 6px; background: rgba(11,11,11,.95);
+      border-top: 1px solid #00ff99;
+      display:flex; justify-content:center; gap:10px;
+    }
+  </style>
+</head>
 
 <body>
 <div class="wrap">
@@ -122,8 +59,20 @@
 
   <div id="panel" style="display:none;">
     <div class="card">
+      <div class="title">🌐 API</div>
+      <div class="muted">Админка читает пользователей из SQLite через API.</div>
+      <div class="row" style="margin-top:8px;">
+        <input id="apiBase" placeholder="API_BASE" />
+        <input id="apiKey" placeholder="X-API-Key" />
+        <button class="btnSm" id="btnSaveApi">Сохранить</button>
+        <button class="btnSm" id="btnTestApi">Тест /health</button>
+      </div>
+      <div class="muted" style="margin-top:6px;" id="apiStatus">—</div>
+    </div>
+
+    <div class="card">
       <div class="title">👥 Пользователи</div>
-      <div class="muted">Меняй win%, generator, балансы. Нажимай “Сохранить”.</div>
+      <div class="muted">Список грузится с сервера. Кнопка “Сохранить” пока локальная (следом сделаем запись в SQLite).</div>
       <div class="row" style="margin-top:10px;">
         <button class="btnSm" id="btnRefresh">Обновить</button>
       </div>
@@ -132,10 +81,10 @@
         <thead>
           <tr>
             <th style="width:180px;">User</th>
-            <th style="width:120px;">Win %</th>
-            <th style="width:120px;">Gen lvl</th>
+            <th style="width:110px;">Win %</th>
+            <th style="width:100px;">Gen</th>
             <th>Balances</th>
-            <th style="width:160px;">Actions</th>
+            <th style="width:120px;">Actions</th>
           </tr>
         </thead>
         <tbody id="usersTbody"></tbody>
@@ -149,9 +98,14 @@
 </div>
 
 <script>
-  const ADMIN_ID = 1901263391; // <-- ВПИШИ СВОЙ ID
-  const USERS_KEY = "wh_users";
+  // ====== ВПИШИ СВОЙ Telegram ID (числом) ======
+  const ADMIN_ID = 0;
+
+  // ====== LOCAL STORAGE KEYS ======
   const ADMIN_PWD_KEY = "wh_admin_password";
+  const API_BASE_KEY = "wh_api_base";
+  const API_KEY_KEY = "wh_api_key";
+  const USERS_LOCAL_KEY = "wh_users"; // пока оставим для локального "сохранить"
 
   const tg = window.Telegram?.WebApp;
   tg?.ready?.();
@@ -162,16 +116,21 @@
     try { return JSON.parse(localStorage.getItem("tg_user") || "null") || { id: 0 }; } catch { return { id: 0 }; }
   }
 
-  function loadUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); }
-    catch { return {}; }
-  }
-  function saveUsers(obj) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(obj));
-  }
-
   function getPwd() { return (localStorage.getItem(ADMIN_PWD_KEY) || "").trim(); }
   function setPwd(p) { localStorage.setItem(ADMIN_PWD_KEY, String(p||"").trim()); }
+
+  function getApiBase() { return (localStorage.getItem(API_BASE_KEY) || "").trim(); }
+  function setApiBase(v) { localStorage.setItem(API_BASE_KEY, String(v||"").trim()); }
+
+  function getApiKey() { return (localStorage.getItem(API_KEY_KEY) || "").trim(); }
+  function setApiKey(v) { localStorage.setItem(API_KEY_KEY, String(v||"").trim()); }
+
+  function loadUsersLocal() {
+    try { return JSON.parse(localStorage.getItem(USERS_LOCAL_KEY) || "{}"); } catch { return {}; }
+  }
+  function saveUsersLocal(obj) {
+    localStorage.setItem(USERS_LOCAL_KEY, JSON.stringify(obj));
+  }
 
   const deniedEl = document.getElementById("denied");
   const loginEl = document.getElementById("login");
@@ -185,7 +144,7 @@
     deniedEl.style.display="none"; loginEl.style.display="block"; panelEl.style.display="none";
     document.getElementById("pwdHint").textContent = getPwd() ? "Пароль установлен." : "Пароль не установлен — нажми «Установить/сменить».";
   }
-  function showPanel(){ deniedEl.style.display="none"; loginEl.style.display="none"; panelEl.style.display="block"; renderUsers(); }
+  function showPanel(){ deniedEl.style.display="none"; loginEl.style.display="none"; panelEl.style.display="block"; initApiUI(); refreshUsers(); }
 
   if (!isAdminById) showDenied(); else showLogin();
 
@@ -205,67 +164,158 @@
     showPanel();
   };
 
-  document.getElementById("btnRefresh").onclick = () => renderUsers();
+  // ====== API UI ======
+  function initApiUI() {
+    const base = getApiBase();
+    const key = getApiKey();
+    document.getElementById("apiBase").value = base;
+    document.getElementById("apiKey").value = key;
+    document.getElementById("apiStatus").textContent = base ? "API_BASE установлен." : "API_BASE пустой (вставь ngrok url).";
+  }
 
-  function renderUsers() {
-    const users = loadUsers();
-    const ids = Object.keys(users).sort((a,b) => (users[b].last_seen||0) - (users[a].last_seen||0));
+  document.getElementById("btnSaveApi").onclick = () => {
+    const base = (document.getElementById("apiBase").value || "").trim().replace(/\/+$/,'');
+    const key = (document.getElementById("apiKey").value || "").trim();
+    setApiBase(base);
+    setApiKey(key);
+    document.getElementById("apiStatus").textContent = "Сохранено.";
+  };
+
+  document.getElementById("btnTestApi").onclick = async () => {
+    const base = (document.getElementById("apiBase").value || "").trim().replace(/\/+$/,'');
+    if (!base) return alert("Вставь API_BASE");
+    try {
+      const r = await fetch(base + "/health");
+      const j = await r.json();
+      document.getElementById("apiStatus").textContent = "health: " + JSON.stringify(j);
+    } catch (e) {
+      document.getElementById("apiStatus").textContent = "Ошибка /health: " + String(e);
+    }
+  };
+
+  document.getElementById("btnRefresh").onclick = () => refreshUsers();
+
+  async function fetchUsersFromServer() {
+    const base = getApiBase();
+    const key = getApiKey();
+    if (!base) throw new Error("API_BASE пустой");
+    if (!key) throw new Error("X-API-Key пустой");
+
+    const res = await fetch(base.replace(/\/+$/,'') + "/admin/users", {
+      headers: { "X-API-Key": key }
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (!data || !data.ok) throw new Error("bad response");
+    return data.users || [];
+  }
+
+  async function refreshUsers() {
+    const tb = document.getElementById("usersTbody");
+    tb.innerHTML = `<tr><td colspan="5" class="muted">Загрузка...</td></tr>`;
+
+    try {
+      const users = await fetchUsersFromServer();
+      renderUsers(users);
+      document.getElementById("apiStatus").textContent = `Загружено пользователей: ${users.length}`;
+    } catch (e) {
+      tb.innerHTML = `<tr><td colspan="5" class="muted">Ошибка загрузки: ${String(e)}</td></tr>`;
+      document.getElementById("apiStatus").textContent = `Ошибка: ${String(e)}`;
+    }
+  }
+
+  function fmtLastSeen(ts) {
+    if (!ts) return "-";
+    try {
+      const d = new Date(ts * 1000);
+      return d.toLocaleString();
+    } catch { return String(ts); }
+  }
+
+  function renderUsers(users) {
     const tb = document.getElementById("usersTbody");
     tb.innerHTML = "";
 
-    for (const id of ids) {
-      const u = users[id];
-      const tr = document.createElement("tr");
+    // для кнопки "Сохранить" пока используем локальный объект
+    const local = loadUsersLocal();
 
+    for (const u of users) {
+      const id = String(u.user_id);
+      const uname = u.username ? "@"+u.username : ((u.first_name||"") + " " + (u.last_name||"")).trim() || "—";
+
+      // если в local есть запись — покажем актуальные локальные значения при редактировании
+      const win = Number((local[id]?.win_chance ?? u.win_chance ?? 1.0));
+      const gen = Number((local[id]?.generator_level ?? u.gen_level ?? 0));
+      const mm = Number((local[id]?.bal_mmcoin ?? u.bal_mmc ?? 0));
+      const ton = Number((local[id]?.bal_ton ?? u.bal_ton ?? 0));
+      const usdt = Number((local[id]?.bal_usdt ?? u.bal_usdt ?? 0));
+      const stars = Number((local[id]?.bal_stars ?? u.bal_stars ?? 0));
+
+      // обеспечим структуру local для save
+      if (!local[id]) {
+        local[id] = {
+          id: u.user_id,
+          username: u.username || "",
+          name: uname,
+          last_seen: Date.now(),
+          win_chance: win,
+          generator_level: gen,
+          bal_mmcoin: mm,
+          bal_ton: ton,
+          bal_usdt: usdt,
+          bal_stars: stars
+        };
+      }
+
+      const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>
-        <div>
-        <div>3MC <input ...></div>
-        <div>TON <input ...></div>
-        <div>USDT <input ...></div>
-        <div>⭐ <input ...></div>
-        </div>
+          <div><b>${uname}</b></div>
+          <div class="muted">ID: ${u.user_id}</div>
+          <div class="muted">last: ${fmtLastSeen(u.last_seen)}</div>
         </td>
 
-        <td><input type="number" step="0.1" min="0" value="${Number(u.win_chance||1).toFixed(1)}" data-id="${id}" data-k="win_chance"></td>
-        <td><input type="number" step="1" min="0" value="${Number(u.generator_level||0)}" data-id="${id}" data-k="generator_level"></td>
+        <td><input type="number" step="0.1" min="0" value="${win.toFixed(1)}" data-id="${id}" data-k="win_chance"></td>
+        <td><input type="number" step="1" min="0" value="${gen}" data-id="${id}" data-k="generator_level"></td>
+
         <td>
-          <div class="row">
-            <label class="muted">3MC</label><input type="number" step="1" value="${Number(u.bal_mmcoin||0)}" data-id="${id}" data-k="bal_mmcoin">
-            <label class="muted">TON</label><input type="number" step="0.01" value="${Number(u.bal_ton||0)}" data-id="${id}" data-k="bal_ton">
-            <label class="muted">USDT</label><input type="number" step="0.01" value="${Number(u.bal_usdt||0)}" data-id="${id}" data-k="bal_usdt">
-            <label class="muted">Stars</label><input type="number" step="1" value="${Number(u.bal_stars||0)}" data-id="${id}" data-k="bal_stars">
-          </div>
+          <div>MMM <input type="number" step="1" value="${mm}" data-id="${id}" data-k="bal_mmcoin"></div>
+          <div>TON <input type="number" step="0.01" value="${ton}" data-id="${id}" data-k="bal_ton"></div>
+          <div>USDT <input type="number" step="0.01" value="${usdt}" data-id="${id}" data-k="bal_usdt"></div>
+          <div>⭐ <input type="number" step="1" value="${stars}" data-id="${id}" data-k="bal_stars"></div>
         </td>
+
         <td>
           <button class="btnSm" data-act="save" data-id="${id}">Сохранить</button>
         </td>
       `;
-
       tb.appendChild(tr);
     }
+
+    saveUsersLocal(local);
 
     tb.onclick = (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
       if (btn.getAttribute("data-act") !== "save") return;
-      saveRow(btn.getAttribute("data-id"));
+      saveRowLocal(btn.getAttribute("data-id"));
     };
   }
 
-  function saveRow(id) {
-    const users = loadUsers();
-    if (!users[id]) return;
+  function saveRowLocal(id) {
+    const local = loadUsersLocal();
+    if (!local[id]) return;
 
     const inputs = document.querySelectorAll(`input[data-id="${id}"]`);
     for (const inp of inputs) {
       const k = inp.getAttribute("data-k");
       const v = Number(inp.value);
       if (!k || Number.isNaN(v)) continue;
-      users[id][k] = v;
+      local[id][k] = v;
     }
-    saveUsers(users);
-    alert("Сохранено.");
+
+    saveUsersLocal(local);
+    alert("Сохранено локально. Следом подключим сохранение в SQLite через API.");
   }
 </script>
 </body>
