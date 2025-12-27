@@ -1,1 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Поиск</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <style>
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .panel { margin: 16px 0; padding: 12px; border: 1px solid #00ff99; border-radius: 10px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 6px;
+      margin: 14px 0;
+    }
+    .cell {
+      border: 1px solid #00ff99;
+      border-radius: 6px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      user-select: none;
+    }
+    .cell.mask {
+      color: transparent;
+      text-shadow: 0 0 10px rgba(0,255,153,0.25);
+      position: relative;
+    }
+    .cell.mask::after {
+      content: "•";
+      color: #00ff99;
+      opacity: 0.4;
+      position: absolute;
+    }
+
+    .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .btn2 { min-width: 180px; }
+
+    .seedBox {
+      margin-top: 12px;
+      min-height: 110px;
+      border: 1px solid #00ff99;
+      border-radius: 10px;
+      padding: 10px;
+      display: none;
+    }
+    .seedLine { font-size: 16px; line-height: 1.6; }
+
+    .navBar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      padding: 10px;
+      background: rgba(11,11,11,0.95);
+      border-top: 1px solid #00ff99;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    .navBar button { min-width: 160px; }
+    body { padding-bottom: 80px; }
+    .muted { opacity: 0.7; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h2>Wallet Hunt</h2>
+    <div class="panel">
+      <div class="muted" id="phaseText">Фаза 1: поиск кошелька</div>
+      <div class="muted">Таймер: <span id="timer">—</span></div>
+
+      <div id="grid" class="grid"></div>
+
+      <div class="row">
+        <button id="btnStart" class="btn2">СТАРТ</button>
+        <button id="btnContinue" class="btn2" style="display:none;">ПРОДОЛЖИТЬ</button>
+        <button id="btnView" class="btn2" style="display:none;">ПОСМОТРЕТЬ</button>
+      </div>
+
+      <div id="seedBox" class="seedBox">
+        <div class="muted">Фаза 2: сид-фразы (визуализация)</div>
+        <div class="seedLine" id="seedLine">…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="navBar">
+    <button onclick="location.href='dashboard.html'">Возврат на главную</button>
+    <button onclick="location.href='dashboard.html'">Возврат в кошелёк</button>
+  </div>
+
+  <script src="../js/hunt.js"></script>
+</body>
+</html>
 
