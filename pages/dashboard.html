@@ -2,32 +2,211 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Кабинет</title>
+  <title>WalletHunter — Кабинет</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/main.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    .wrap{max-width:980px;margin:0 auto;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .card{border:1px solid #00ff99;border-radius:12px;padding:12px;text-align:left;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .muted{opacity:.75}
+    .title{font-size:18px;font-weight:800;margin:0 0 6px 0;}
+    .kv{display:flex;justify-content:space-between;border-bottom:1px dashed rgba(0,255,153,.25);padding:6px 0;}
+    .kv:last-child{border-bottom:none;}
+    .pill{padding:2px 8px;border:1px solid #00ff99;border-radius:999px;font-size:12px;}
+    .adminBtn{border-color:#ffd166;color:#ffd166}
+    .btnWide{min-width:220px}
+    .navBar{
+      position:fixed;left:0;right:0;bottom:0;
+      padding:10px;background:rgba(11,11,11,.95);
+      border-top:1px solid #00ff99;
+      display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+    }
+    body{padding-bottom:90px;}
+  </style>
 </head>
+
 <body>
+<div class="wrap">
   <h2>👤 Кабинет</h2>
-  <div id="profile">Загрузка...</div>
 
-  <button onclick="location.href='hunt.html'">▶️ Начать</button>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <div class="title" id="uTitle">Пользователь</div>
+        <div class="muted" id="uSub">—</div>
+      </div>
 
-  <script>
-    function getUser() {
-      try { return JSON.parse(localStorage.getItem("tg_user") || "null"); }
-      catch { return null; }
+      <div class="row">
+        <span class="pill" id="walletStatus">Кошелёк: ?</span>
+        <button id="adminBtn" class="adminBtn" style="display:none;" onclick="location.href='admin.html'">
+          🔧 ADMIN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:12px;">
+    <div class="card">
+      <div class="title">📊 Прогресс</div>
+      <div class="kv"><span class="muted">Время в приложении</span><span><b id="timeMin">0</b> мин</span></div>
+      <div class="kv"><span class="muted">Запусков</span><span><b id="launches">1</b></span></div>
+      <div class="kv"><span class="muted">Шанс выигрыша</span><span><b id="winChance">1.0</b>%</span></div>
+      <div class="kv"><span class="muted">Уровень генератора</span><span><b id="genLevel">0</b></span></div>
+    </div>
+
+    <div class="card">
+      <div class="title">💰 Балансы (тест)</div>
+      <div class="kv"><span class="muted">3MCoin</span><span><b id="mmcoin">0</b></span></div>
+      <div class="kv"><span class="muted">TON</span><span><b id="ton">0</b></span></div>
+      <div class="kv"><span class="muted">USDT</span><span><b id="usdt">0</b></span></div>
+      <div class="kv"><span class="muted">Stars</span><span><b id="stars">0</b></span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="title">🎮 Меню</div>
+    <div class="row">
+      <button class="btnWide" onclick="location.href='hunt.html'">▶️ Начать</button>
+      <button class="btnWide" onclick="location.href='mmcoin.html'">💠 3MCoin</button>
+      <button class="btnWide" onclick="location.href='leaderboard.html'">🏆 Топ</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">
+      Реальные кошельки/выплаты подключим позже. Сейчас MVP + тестирование.
+    </div>
+  </div>
+</div>
+
+<div class="navBar">
+  <button onclick="location.href='dashboard.html'">Возврат на главную</button>
+  <button onclick="location.href='dashboard.html'">Возврат в кошелёк</button>
+</div>
+
+<script>
+  // ВПИШИ СВОЙ ID (получишь через /myid в боте)
+  const ADMIN_ID = 1901263391;
+
+  const tg = window.Telegram?.WebApp;
+  tg?.ready?.();
+
+  function getTgUser() {
+    const u = tg?.initDataUnsafe?.user;
+    if (u && u.id) return {
+      id: u.id,
+      username: u.username || "",
+      first_name: u.first_name || "",
+      last_name: u.last_name || ""
+    };
+    try {
+      const cached = JSON.parse(localStorage.getItem("tg_user") || "null");
+      if (cached && cached.id) return cached;
+    } catch {}
+    return { id: 999000, username: "browser_test", first_name: "Browser", last_name: "" };
+  }
+
+  const USERS_KEY = "wh_users";
+
+  function loadUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function saveUsers(obj) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(obj));
+  }
+
+  function ensureUser(u) {
+    const users = loadUsers();
+    const id = String(u.id);
+
+    if (!users[id]) {
+      users[id] = {
+        id: u.id,
+        username: u.username || "",
+        name: [u.first_name, u.last_name].filter(Boolean).join(" "),
+        created_at: Date.now(),
+        last_seen: Date.now(),
+        launches: 0,
+        total_active_ms: 0,
+        win_chance: 1.0,
+        generator_level: 0,
+        bal_mmcoin: 0,
+        bal_ton: 0,
+        bal_usdt: 0,
+        bal_stars: 0,
+        wallet_linked: false
+      };
     }
 
-    const u = getUser();
-    if (!u) {
-      document.getElementById("profile").innerText =
-        "Нет данных пользователя. Открой Mini App через Telegram-бота.";
+    users[id].username = u.username || users[id].username;
+    users[id].name = [u.first_name, u.last_name].filter(Boolean).join(" ") || users[id].name;
+    users[id].last_seen = Date.now();
+    users[id].launches = (users[id].launches || 0) + 1;
+
+    saveUsers(users);
+    return users[id];
+  }
+
+  // считаем время “в приложении”
+  let sessionStart = Date.now();
+  function flushTime(userObj) {
+    const delta = Date.now() - sessionStart;
+    sessionStart = Date.now();
+    const users = loadUsers();
+    const id = String(userObj.id);
+    if (!users[id]) return;
+    users[id].total_active_ms = Number(users[id].total_active_ms || 0) + Math.max(0, delta);
+    users[id].last_seen = Date.now();
+    saveUsers(users);
+  }
+
+  const tgUser = getTgUser();
+  const userObj = ensureUser(tgUser);
+
+  function render() {
+    const title = tgUser.username ? `@${tgUser.username}` : (tgUser.first_name || "Пользователь");
+    document.getElementById("uTitle").textContent = title;
+    document.getElementById("uSub").textContent = `ID: ${tgUser.id}`;
+
+    const ws = document.getElementById("walletStatus");
+    ws.textContent = userObj.wallet_linked ? "Кошелёк: ✅ привязан" : "Кошелёк: ❌ не привязан";
+
+    document.getElementById("launches").textContent = String(userObj.launches || 1);
+    document.getElementById("winChance").textContent = String(Number(userObj.win_chance || 1.0).toFixed(1));
+    document.getElementById("genLevel").textContent = String(userObj.generator_level || 0);
+
+    document.getElementById("mmcoin").textContent = String(userObj.bal_mmcoin || 0);
+    document.getElementById("ton").textContent = String(userObj.bal_ton || 0);
+    document.getElementById("usdt").textContent = String(userObj.bal_usdt || 0);
+    document.getElementById("stars").textContent = String(userObj.bal_stars || 0);
+
+    const mins = Math.floor(Number(userObj.total_active_ms || 0) / 60000);
+    document.getElementById("timeMin").textContent = String(mins);
+
+    if (Number(tgUser.id) === Number(ADMIN_ID) && ADMIN_ID !== 0) {
+      document.getElementById("adminBtn").style.display = "inline-block";
     } else {
-      document.getElementById("profile").innerHTML = `
-        <p>ID: <b>${u.id}</b></p>
-        <p>Ник: <b>@${u.username || "-"}</b></p>
-      `;
+      document.getElementById("adminBtn").style.display = "none";
     }
-  </script>
+  }
+
+  render();
+
+  // раз в 10 секунд сохраняем активное время
+  setInterval(() => {
+    flushTime(userObj);
+    const users = loadUsers();
+    const refreshed = users[String(tgUser.id)];
+    if (refreshed) Object.assign(userObj, refreshed);
+    render();
+  }, 10000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushTime(userObj);
+  });
+
+  window.addEventListener("beforeunload", () => flushTime(userObj));
+</script>
 </body>
 </html>
