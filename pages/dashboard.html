@@ -1,96 +1,321 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Кабинет</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/main.css">
+  <meta charset="UTF-8" />
+  <title>WalletHunter — Кабинет</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    .wrap{max-width:980px;margin:0 auto;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .card{border:1px solid #00ff99;border-radius:12px;padding:12px;text-align:left;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .muted{opacity:.75}
+    .title{font-size:18px;font-weight:800;margin:0 0 6px 0;}
+    .kv{display:flex;justify-content:space-between;border-bottom:1px dashed rgba(0,255,153,.25);padding:6px 0;}
+    .kv:last-child{border-bottom:none;}
+    .pill{padding:2px 8px;border:1px solid #00ff99;border-radius:999px;font-size:12px;}
+    .ok{color:#00ff99}
+    .bad{color:#ff6b6b;border-color:#ff6b6b}
+    .btnWide{min-width:220px}
+    .navBar{
+      position:fixed;left:0;right:0;bottom:0;
+      padding:10px;background:rgba(11,11,11,.95);
+      border-top:1px solid #00ff99;
+      display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+    }
+    body{padding-bottom:90px;}
+    /* бегущая строка */
+    .tickerWrap{border:1px solid #00ff99;border-radius:12px;overflow:hidden;}
+    .ticker{white-space:nowrap;display:inline-block;padding:8px 0;}
+    .tickerInner{display:inline-block;padding-left:100%;animation:scroll 18s linear infinite;}
+    @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+    .adminBtn{border-color:#ffd166;color:#ffd166}
+  </style>
 </head>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-  const tg = window.Telegram?.WebApp;
-
-  function sendTest() {
-    if (!tg) {
-      alert("Telegram.WebApp НЕ найден. Ты открыл не из Telegram?");
-      return;
-    }
-
-    tg.ready();
-
-    const payload = {
-      app: "WalletHunter",
-      action: "test_send",
-      user_id: tg.initDataUnsafe?.user?.id ?? null,
-      ts: Date.now()
-    };
-
-    tg.sendData(JSON.stringify(payload));
-    tg.showAlert("Отправил данные в бот ✅"); // чтобы ты видел, что sendData вызвался
-  }
-</script>
-
-<button onclick="sendTest()" style="margin-top:16px;">
-  ✅ SEND TEST (в бот)
-</button>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-  function sendTestData() {
-    const tg = window.Telegram?.WebApp;
-    if (!tg) {
-      alert("Telegram.WebApp не найден — ты открыл не из Telegram.");
-      return;
-    }
-
-    tg.ready();
-
-    const payload = {
-      app: "WalletHunter",
-      action: "test_send",
-      user_id: tg.initDataUnsafe?.user?.id ?? null,
-      ts: Date.now()
-    };
-
-    tg.sendData(JSON.stringify(payload));
-
-    // Задержка — чтобы Telegram успел доставить данные
-    setTimeout(() => tg.close(), 200);
-  }
-</script>
-
-<button onclick="sendTestData()">✅ SEND TEST (в бот)</button>
-    
 
 <body>
+<div class="wrap">
+  <h2>👤 Кабинет</h2>
 
-<h2>Личный кабинет</h2>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <div class="title" id="uTitle">Пользователь</div>
+        <div class="muted" id="uSub">—</div>
+      </div>
 
-<div id="profile"></div>
+      <div class="row">
+        <span class="pill" id="walletStatus">Кошелёк: ?</span>
+        <button id="adminBtn" class="adminBtn" style="display:none;" onclick="location.href='admin.html'">
+          🔧 ADMIN
+        </button>
+      </div>
+    </div>
+  </div>
 
-<button onclick="startHunt()">Начать</button>
+  <div class="tickerWrap" style="margin:12px 0;">
+    <div class="ticker">
+      <div class="tickerInner" id="tickerText">Загрузка событий…</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="title">📊 Прогресс</div>
+      <div class="kv"><span class="muted">Время в приложении</span><span><b id="timeMin">0</b> мин</span></div>
+      <div class="kv"><span class="muted">Запусков</span><span><b id="launches">1</b></span></div>
+      <div class="kv"><span class="muted">Шанс выигрыша</span><span><b id="winChance">1.0</b>%</span></div>
+      <div class="kv"><span class="muted">Уровень генератора</span><span><b id="genLevel">0</b></span></div>
+    </div>
+
+    <div class="card">
+      <div class="title">💰 Балансы (пока заглушки)</div>
+      <div class="kv"><span class="muted">3MCoin</span><span><b id="mmcoin">0</b></span></div>
+      <div class="kv"><span class="muted">TON</span><span><b id="ton">0</b></span></div>
+      <div class="kv"><span class="muted">USDT</span><span><b id="usdt">0</b></span></div>
+      <div class="kv"><span class="muted">Stars</span><span><b id="stars">0</b></span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="title">🎮 Меню</div>
+    <div class="row">
+      <button class="btnWide" onclick="location.href='hunt.html'">▶️ Начать</button>
+      <button class="btnWide" onclick="location.href='mmcoin.html'">💠 3MCoin</button>
+      <button class="btnWide" onclick="location.href='leaderboard.html'">🏆 Топ</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">
+      Сейчас мы строим дерево и UX. Реальные кошельки/выплаты подключим позже.
+    </div>
+  </div>
+</div>
+
+<div class="navBar">
+  <button onclick="location.href='dashboard.html'">Возврат на главную</button>
+  <button onclick="location.href='dashboard.html'">Возврат в кошелёк</button>
+</div>
 
 <script>
-    const user = JSON.parse(localStorage.getItem('tg_user'));
+  // ========= НАСТРОЙКИ =========
+  // Поставь сюда свой Telegram ID (число). Тогда кнопка ADMIN будет только у тебя.
+  const ADMIN_ID = 0; // <-- ВПИШИ СВОЙ ID
 
-    document.getElementById('profile').innerHTML = `
-        <p>ID: ${user.id}</p>
-        <p>Ник: ${user.username || '-'}</p>
-        <p>Время в игре: <span id="time">0</span> мин</p>
-    `;
+  // ========= TELEGRAM USER =========
+  const tg = window.Telegram?.WebApp;
+  tg?.ready?.();
 
-    let minutes = Number(localStorage.getItem('minutes') || 0);
+  function getTgUser() {
+    // 1) пробуем из Telegram WebApp
+    const u = tg?.initDataUnsafe?.user;
+    if (u && u.id) return {
+      id: u.id,
+      username: u.username || "",
+      first_name: u.first_name || "",
+      last_name: u.last_name || ""
+    };
 
-    setInterval(() => {
-        minutes++;
-        localStorage.setItem('minutes', minutes);
-        document.getElementById('time').innerText = minutes;
-    }, 60000);
+    // 2) пробуем из localStorage, который уже кладёт app.js
+    try {
+      const cached = JSON.parse(localStorage.getItem("tg_user") || "null");
+      if (cached && cached.id) return cached;
+    } catch {}
 
-    function startHunt() {
-        window.location.href = 'hunt.html';
+    // 3) fallback для браузера
+    return { id: 999000, username: "browser_test", first_name: "Browser", last_name: "" };
+  }
+
+  // ========= STORAGE (реестр пользователей) =========
+  const USERS_KEY = "wh_users"; // { [id]: userObj }
+
+  function loadUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function saveUsers(obj) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(obj));
+  }
+
+  function ensureUser(u) {
+    const users = loadUsers();
+    const id = String(u.id);
+
+    if (!users[id]) {
+      users[id] = {
+        id: u.id,
+        username: u.username || "",
+        name: [u.first_name, u.last_name].filter(Boolean).join(" "),
+        created_at: Date.now(),
+        last_seen: Date.now(),
+        launches: 0,
+
+        // прогресс/настройки
+        total_active_ms: 0,
+        win_chance: 1.0,
+        generator_level: 0,
+
+        // балансы (заглушки)
+        bal_mmcoin: 0,
+        bal_ton: 0,
+        bal_usdt: 0,
+        bal_stars: 0,
+
+        // тайминги на будущее (персональные, пока не используем)
+        wallet_duration_hours: null,
+        seed_duration_minutes: null,
+
+        wallet_linked: false
+      };
     }
-</script>
 
+    // обновим данные
+    users[id].username = u.username || users[id].username;
+    users[id].name = [u.first_name, u.last_name].filter(Boolean).join(" ") || users[id].name;
+    users[id].last_seen = Date.now();
+    users[id].launches = (users[id].launches || 0) + 1;
+
+    saveUsers(users);
+    return users[id];
+  }
+
+  // ========= Реальное время в приложении =========
+  // Считаем только когда страница видима.
+  // Сохраняем в total_active_ms пользователя.
+  let sessionStart = null;
+
+  function startSession() {
+    if (sessionStart === null) sessionStart = Date.now();
+  }
+
+  function stopSessionAndAccumulate(userObj) {
+    if (sessionStart === null) return;
+    const delta = Date.now() - sessionStart;
+    sessionStart = null;
+
+    const users = loadUsers();
+    const id = String(userObj.id);
+    if (!users[id]) return;
+
+    users[id].total_active_ms = Number(users[id].total_active_ms || 0) + Math.max(0, delta);
+    users[id].last_seen = Date.now();
+    saveUsers(users);
+  }
+
+  function getTotalMinutes(userObj) {
+    return Math.floor(Number(userObj.total_active_ms || 0) / 60000);
+  }
+
+  // ========= Лента событий (пока фейковая) =========
+  const FEED_KEY = "wh_feed"; // массив строк
+  function seedFeedIfEmpty() {
+    let feed = [];
+    try { feed = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch {}
+    if (feed.length === 0) {
+      feed = [
+        "5 минут назад пользователь получил 0.5 TON",
+        "12 минут назад найдено 20 USDT",
+        "1 час назад кто-то апнул Генератор до lvl 2",
+        "Система: тестовый режим активен"
+      ];
+      localStorage.setItem(FEED_KEY, JSON.stringify(feed));
+    }
+  }
+  function renderFeed() {
+    seedFeedIfEmpty();
+    let feed = [];
+    try { feed = JSON.parse(localStorage.getItem(FEED_KEY) || "[]"); } catch {}
+    const text = feed.join("   •   ");
+    document.getElementById("tickerText").textContent = text || "Событий пока нет";
+  }
+
+  // ========= UI RENDER =========
+  const tgUser = getTgUser();
+  const userObj = ensureUser(tgUser);
+
+  function render() {
+    const title = tgUser.username ? `@${tgUser.username}` : (tgUser.first_name || "Пользователь");
+    document.getElementById("uTitle").textContent = title;
+    document.getElementById("uSub").textContent = `ID: ${tgUser.id}`;
+
+    // кошелёк — пока заглушка
+    const ws = document.getElementById("walletStatus");
+    if (userObj.wallet_linked) {
+      ws.textContent = "Кошелёк: ✅ привязан";
+      ws.classList.remove("bad");
+      ws.classList.add("ok");
+    } else {
+      ws.textContent = "Кошелёк: ❌ не привязан";
+      ws.classList.remove("ok");
+      ws.classList.add("bad");
+    }
+
+    document.getElementById("launches").textContent = String(userObj.launches || 1);
+    document.getElementById("winChance").textContent = String(Number(userObj.win_chance || 1.0).toFixed(1));
+    document.getElementById("genLevel").textContent = String(userObj.generator_level || 0);
+
+    document.getElementById("mmcoin").textContent = String(userObj.bal_mmcoin || 0);
+    document.getElementById("ton").textContent = String(userObj.bal_ton || 0);
+    document.getElementById("usdt").textContent = String(userObj.bal_usdt || 0);
+    document.getElementById("stars").textContent = String(userObj.bal_stars || 0);
+
+    document.getElementById("timeMin").textContent = String(getTotalMinutes(userObj));
+
+    // admin button только для админа
+    if (Number(tgUser.id) === Number(ADMIN_ID) && ADMIN_ID !== 0) {
+      document.getElementById("adminBtn").style.display = "inline-block";
+    } else {
+      document.getElementById("adminBtn").style.display = "none";
+    }
+  }
+
+  // ========= LIFECYCLE =========
+  renderFeed();
+  render();
+
+  // стартуем подсчёт времени
+  startSession();
+
+  // каждые 15 сек обновляем минутки (без лишней нагрузки)
+  setInterval(() => {
+    // аккуратно: обновим данные из хранилища (могла поменяться админкой)
+    const users = loadUsers();
+    const cur = users[String(tgUser.id)];
+    if (cur) {
+      // если сессия идёт — прибавим "виртуально" для отображения
+      const total = Number(cur.total_active_ms || 0) + (sessionStart ? (Date.now() - sessionStart) : 0);
+      document.getElementById("timeMin").textContent = String(Math.floor(total / 60000));
+
+      document.getElementById("winChance").textContent = String(Number(cur.win_chance || 1.0).toFixed(1));
+      document.getElementById("genLevel").textContent = String(cur.generator_level || 0);
+
+      document.getElementById("mmcoin").textContent = String(cur.bal_mmcoin || 0);
+      document.getElementById("ton").textContent = String(cur.bal_ton || 0);
+      document.getElementById("usdt").textContent = String(cur.bal_usdt || 0);
+      document.getElementById("stars").textContent = String(cur.bal_stars || 0);
+    }
+  }, 15000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      stopSessionAndAccumulate(userObj);
+    } else {
+      startSession();
+      // на входе перерисуем
+      const users = loadUsers();
+      const refreshed = users[String(tgUser.id)];
+      if (refreshed) {
+        Object.assign(userObj, refreshed);
+      }
+      render();
+      renderFeed();
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    stopSessionAndAccumulate(userObj);
+  });
+</script>
 </body>
 </html>
-
