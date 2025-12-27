@@ -6,31 +6,95 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="../css/main.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    .wrap{max-width:1100px;margin:0 auto;}
-    .card{border:1px solid #00ff99;border-radius:12px;padding:12px;text-align:left;margin:12px 0;}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-    .muted{opacity:.75}
-    .title{font-size:18px;font-weight:800;margin:0 0 6px 0;}
-    input{
-      padding:10px;border-radius:10px;border:1px solid rgba(0,255,153,.6);
-      background:#0b0b0b;color:#00ff99;outline:none;
-      min-width:140px;
-    }
-    table{width:100%;border-collapse:collapse;margin-top:10px;}
-    th, td{border-bottom:1px dashed rgba(0,255,153,.25);padding:8px;text-align:left;vertical-align:top;}
-    th{font-weight:800;}
-    .btnSm{padding:10px 14px}
-    .danger{border-color:#ff6b6b;color:#ff6b6b}
-    .navBar{
-      position:fixed;left:0;right:0;bottom:0;
-      padding:10px;background:rgba(11,11,11,.95);
-      border-top:1px solid #00ff99;
-      display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
-    }
-    body{padding-bottom:90px;}
-  </style>
-</head>
+   <style>
+  body {
+    font-size: 13px;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .card {
+    border: 1px solid #00ff99;
+    border-radius: 10px;
+    padding: 8px;
+    margin: 8px 0;
+  }
+
+  .title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .muted {
+    opacity: .7;
+    font-size: 12px;
+  }
+
+  .row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  input {
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,255,153,.6);
+    background: #0b0b0b;
+    color: #00ff99;
+    font-size: 12px;
+    width: 80px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 4px 6px;
+    border-bottom: 1px dashed rgba(0,255,153,.25);
+    vertical-align: top;
+  }
+
+  th {
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .btnSm {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .danger {
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+  }
+
+  .navBar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 6px;
+    background: rgba(11,11,11,.95);
+    border-top: 1px solid #00ff99;
+    display: flex;
+    justify-content: center;
+  }
+
+  body {
+    padding-bottom: 60px;
+  }
+</style>
+   
 
 <body>
 <div class="wrap">
