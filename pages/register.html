@@ -1,29 +1,38 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Регистрация</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/main.css">
+  <meta charset="UTF-8" />
+  <title>Регистрация</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../css/main.css">
 </head>
 <body>
+  <h2>Регистрация</h2>
+  <p id="info">Загрузка...</p>
 
-<h2>Регистрация</h2>
-<p id="userInfo"></p>
+  <button id="btn">✅ Зарегистрироваться</button>
 
-<button id="registerBtn">Продолжить</button>
+  <script>
+    function getUser() {
+      try { return JSON.parse(localStorage.getItem("tg_user") || "null"); }
+      catch { return null; }
+    }
 
-<script>
-    const user = JSON.parse(localStorage.getItem('tg_user'));
-    document.getElementById('userInfo').innerText =
-        `Пользователь: ${user.username || user.first_name} (ID: ${user.id})`;
+    const u = getUser();
 
-    document.getElementById('registerBtn').onclick = () => {
-        localStorage.setItem('registered', 'true');
-        window.location.href = 'dashboard.html';
+    if (!u) {
+      document.getElementById("info").innerText =
+        "Пользователь не найден. Открой Mini App через Telegram-бота.";
+      document.getElementById("btn").style.display = "none";
+    } else {
+      document.getElementById("info").innerText =
+        `Пользователь: @${u.username || "-"} | ID: ${u.id}`;
+    }
+
+    document.getElementById("btn").onclick = () => {
+      localStorage.setItem("registered", "true");
+      window.location.href = "dashboard.html";
     };
-</script>
-
+  </script>
 </body>
 </html>
-
