@@ -218,10 +218,14 @@
 
       tr.innerHTML = `
         <td>
-          <div><b>${u.username ? "@"+u.username : (u.name || "user")}</b></div>
-          <div class="muted">ID: ${u.id}</div>
-          <div class="muted">мин: ${Math.floor((u.total_active_ms||0)/60000)}</div>
+        <div>
+        <div>3MC <input ...></div>
+        <div>TON <input ...></div>
+        <div>USDT <input ...></div>
+        <div>⭐ <input ...></div>
+        </div>
         </td>
+
         <td><input type="number" step="0.1" min="0" value="${Number(u.win_chance||1).toFixed(1)}" data-id="${id}" data-k="win_chance"></td>
         <td><input type="number" step="1" min="0" value="${Number(u.generator_level||0)}" data-id="${id}" data-k="generator_level"></td>
         <td>
