@@ -6,6 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
 </head>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const tg = window.Telegram?.WebApp;
+
+  function sendTest() {
+    if (!tg) {
+      alert("Telegram.WebApp НЕ найден. Ты открыл не из Telegram?");
+      return;
+    }
+
+    tg.ready();
+
+    const payload = {
+      app: "WalletHunter",
+      action: "test_send",
+      user_id: tg.initDataUnsafe?.user?.id ?? null,
+      ts: Date.now()
+    };
+
+    tg.sendData(JSON.stringify(payload));
+    tg.showAlert("Отправил данные в бот ✅"); // чтобы ты видел, что sendData вызвался
+  }
+</script>
+
+<button onclick="sendTest()" style="margin-top:16px;">
+  ✅ SEND TEST (в бот)
+</button>
+
 <body>
 
 <h2>Личный кабинет</h2>
