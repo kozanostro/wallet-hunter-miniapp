@@ -289,4 +289,38 @@ btnView.addEventListener("click", () => {
   window.location.href = "result.html";
 });
 
-restoreState();
+async function syncConfigFromServer() {
+  try {
+    const tg = window.Telegram?.WebApp;
+    const user = tg?.initDataUnsafe?.user;
+    if (!user?.id) return;
+
+    // 1) ping (зарегистрировать/обновить)
+    await fetch("https://5e493704-d8e7-4863-932e-dadf65dc14e2.clouding.host/ping", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        user_id: user.id,
+        username: user.username || "",
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        language: user.language_code || "ru",
+        app: "WalletHunter"
+      })
+    });
+
+    // 2) config
+    const res = await fetch(`https://5e493704-d8e7-4863-932e-dadf65dc14e2.clouding.host/config?user_id=${user.id}`);
+    const cfg = await res.json();
+    if (!cfg?.ok) return;
+
+    // кладем таймеры в localStorage — твой hunt.js уже это читает
+    localStorage.setItem("hunt_wallet_duration_ms", String((cfg.t_wallet_seconds || 0) * 1000));
+    localStorage.setItem("hunt_seed_duration_ms", String((cfg.t_seed_seconds || 900) * 1000));
+  } catch (e) {
+    // тихо игнорим — игра не должна падать
+  }
+}
+
+syncConfigFromServer().finally(restoreState);
+
