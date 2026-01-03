@@ -163,7 +163,7 @@ const WORDS = [
   "secure","token","native","future","cloud","ember","drift","glory","focus","orbit",
 ];
 
-function randomWords(n=12) {
+function randomWords(n=16) {
   const arr = [];
   for (let i=0;i<n;i++) arr.push(WORDS[Math.floor(Math.random()*WORDS.length)]);
   return arr.join(" ");
@@ -172,7 +172,7 @@ function randomWords(n=12) {
 function runSeedAnimation() {
   stopSeedAnimation();
   seedInterval = setInterval(() => {
-    seedLine.textContent = randomWords(12);
+    seedLine.textContent = randomWords(16);
   }, 120);
 }
 
@@ -251,8 +251,8 @@ function restoreState() {
     btnContinue.style.display = "none";
     btnView.style.display = "none";
     seedBox.style.display = "block";
-    phaseTextEl.textContent = "Фаза 2: подбор сид-фраз (визуализация)";
-    // адрес восстановим
+    phaseTextEl.textContent = "Фаза 2: подбор сид-фраз ;
+      // адрес восстановим
     const addr = localStorage.getItem("hunt_fake_addr");
     if (addr && addr.length === TON_ADDR_LEN) {
       [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
