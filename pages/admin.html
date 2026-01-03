@@ -1,266 +1,215 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>WalletHunter — Admin</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WalletHunter Admin</title>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0e0e0e;
-      color: #eaeaea;
-    }
-
-    header {
-      padding: 10px 14px;
-      background: #151515;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    header input {
-      background: #1f1f1f;
-      border: 1px solid #333;
-      color: #fff;
-      padding: 6px 8px;
-      border-radius: 4px;
-    }
-
-    header button {
-      padding: 6px 10px;
-      background: #2a7cff;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    header button:hover {
-      background: #1f64d6;
-    }
-
-    .ticker {
-      background: #111;
-      border-top: 1px solid #222;
-      border-bottom: 1px solid #222;
-      padding: 6px 10px;
-      font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-    }
-
-    .ticker span {
-      display: inline-block;
-      padding-right: 40px;
-      animation: ticker 20s linear infinite;
-    }
-
-    @keyframes ticker {
-      from { transform: translateX(100%); }
-      to   { transform: translateX(-100%); }
-    }
-
-    main {
-      padding: 10px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    th, td {
-      border: 1px solid #222;
-      padding: 4px 6px;
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    th {
-      background: #1a1a1a;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    tr:nth-child(even) {
-      background: #141414;
-    }
-
-    input.small {
-      width: 70px;
-      background: #1f1f1f;
-      border: 1px solid #333;
-      color: #fff;
-      padding: 3px;
-      border-radius: 3px;
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .save-btn {
-      background: #2ecc71;
-      border: none;
-      color: #000;
-      padding: 4px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .save-btn:hover {
-      background: #27ae60;
-    }
-
-    .top-info {
-      font-size: 13px;
-      margin-bottom: 6px;
-      opacity: 0.9;
-    }
+    body{font-family:Arial,sans-serif;margin:12px;background:#0b0f14;color:#e7eef7}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+    input,button{padding:8px;border-radius:8px;border:1px solid #2b3a4a;background:#101826;color:#e7eef7}
+    button{cursor:pointer}
+    .card{border:1px solid #233243;border-radius:12px;padding:10px;margin-top:10px;background:#0f1622}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #233243;padding:8px;font-size:13px;vertical-align:top}
+    th{color:#9fb3c8;text-align:left}
+    .small{font-size:12px;color:#9fb3c8}
+    .ok{color:#7CFF9B}
+    .bad{color:#FF7C7C}
+    .w120{width:120px}
+    .w90{width:90px}
   </style>
 </head>
-
 <body>
 
-<header>
-  <strong>WalletHunter Admin</strong>
+  <h2 style="margin:0 0 8px 0;">Admin</h2>
 
-  <input id="apiBase" placeholder="API_BASE" />
-  <input id="apiKey" placeholder="X-API-Key" />
-  <button onclick="loadAll()">Загрузить</button>
-</header>
+  <div class="row">
+    <label class="small">API Base:</label>
+    <input id="apiBase" class="w120" style="width:360px" value="https://5e493704-d8e7-4863-932e-dadf65dc14e2.clouding.host" />
+  </div>
 
-<div class="ticker" id="ticker">
-  <span>Загрузка событий...</span>
-</div>
+  <div class="row">
+    <label class="small">X-API-Key:</label>
+    <input id="apiKey" style="width:360px" placeholder="вставь ADMIN_API_KEY" />
+    <button id="btnSaveKey">Сохранить ключ</button>
+    <button id="btnReload">Обновить</button>
+  </div>
 
-<main>
-  <div class="top-info" id="metaInfo"></div>
+  <div id="status" class="small"></div>
 
-  <table id="usersTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>User</th>
-        <th>Мин</th>
-        <th>Win%</th>
-        <th>Gen</th>
-        <th>MMM</th>
-        <th>TON</th>
-        <th>USDT</th>
-        <th>⭐</th>
-        <th>T-W</th>
-        <th>T-S</th>
-        <th>Save</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</main>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <div class="small">MMMcoin total supply:</div>
+        <div id="supply" style="font-size:18px;">—</div>
+      </div>
+      <div class="small">Совет: меняй значения → жми “Сохранить” в строке юзера.</div>
+    </div>
+
+    <div style="overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID / Ник</th>
+            <th>Шанс / Ген</th>
+            <th>Таймеры</th>
+            <th>Баланс</th>
+            <th>Wallet</th>
+            <th>Время</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
 
 <script>
-const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
 
-function getHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "X-API-Key": $("apiKey").value.trim()
-  };
-}
+  function getBase(){ return $("apiBase").value.trim().replace(/\/+$/,''); }
+  function getKey(){ return $("apiKey").value.trim(); }
 
-async function loadAll() {
-  const base = $("apiBase").value.trim();
-  if (!base) return alert("API_BASE пуст");
+  function setStatus(txt, ok=true){
+    $("status").textContent = txt;
+    $("status").className = "small " + (ok ? "ok":"bad");
+  }
 
-  localStorage.setItem("ADMIN_API_BASE", base);
-  localStorage.setItem("ADMIN_API_KEY", $("apiKey").value.trim());
+  function loadSaved(){
+    const k = localStorage.getItem("admin_api_key") || "";
+    const b = localStorage.getItem("admin_api_base") || "";
+    if (k) $("apiKey").value = k;
+    if (b) $("apiBase").value = b;
+  }
 
-  await loadMeta(base);
-  await loadUsers(base);
-  await loadEvents(base);
-}
+  async function apiGet(path){
+    const res = await fetch(getBase()+path, {
+      headers: { "X-API-Key": getKey() }
+    });
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
+  }
 
-async function loadMeta(base) {
-  const r = await fetch(base + "/meta");
-  const j = await r.json();
-  $("metaInfo").innerText =
-    "Эмиссия MMMcoin: " + j.mmmcoin_total_supply.toFixed(3);
-}
+  async function apiPost(path, body){
+    const res = await fetch(getBase()+path, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-API-Key": getKey()
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
+  }
 
-async function loadUsers(base) {
-  const r = await fetch(base + "/admin/users", { headers: getHeaders() });
-  const j = await r.json();
-  if (!j.ok) return alert("Ошибка загрузки users");
+  function fmtName(u){
+    const uname = u.username ? "@"+u.username : "(no username)";
+    const name = ((u.first_name||"")+" "+(u.last_name||"")).trim() || "(no name)";
+    return uname+" / "+name;
+  }
 
-  const tb = $("usersTable").querySelector("tbody");
-  tb.innerHTML = "";
-
-  j.users.forEach(u => {
+  function trUser(u){
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td>${u.user_id}</td>
-      <td>@${u.username || ""}</td>
-      <td>${u.minutes_in_app}</td>
+      <td>
+        <div><b>${u.user_id}</b></div>
+        <div class="small">${fmtName(u)}</div>
+      </td>
 
-      <td><input class="small" value="${u.win_chance}" data-f="win_chance"></td>
-      <td><input class="small" value="${u.gen_level}" data-f="gen_level"></td>
+      <td>
+        <div class="small">win %</div>
+        <input class="w90" data-k="win_chance" value="${Number(u.win_chance||0)}" />
+        <div class="small" style="margin-top:6px;">gen</div>
+        <input class="w90" data-k="gen_level" value="${Number(u.gen_level||0)}" />
+      </td>
 
-      <td><input class="small" value="${u.bal_mmc}" data-f="bal_mmc"></td>
-      <td><input class="small" value="${u.bal_ton}" data-f="bal_ton"></td>
-      <td><input class="small" value="${u.bal_usdt}" data-f="bal_usdt"></td>
-      <td><input class="small" value="${u.bal_stars}" data-f="bal_stars"></td>
+      <td>
+        <div class="small">wallet sec</div>
+        <input class="w90" data-k="t_wallet_seconds" value="${Number(u.t_wallet_seconds||0)}" />
+        <div class="small" style="margin-top:6px;">seed sec</div>
+        <input class="w90" data-k="t_seed_seconds" value="${Number(u.t_seed_seconds||0)}" />
+      </td>
 
-      <td><input class="small" value="${u.t_wallet_seconds}" data-f="t_wallet_seconds"></td>
-      <td><input class="small" value="${u.t_seed_seconds}" data-f="t_seed_seconds"></td>
+      <td>
+        <div class="small">MMM / TON</div>
+        <input class="w90" data-k="bal_mmc" value="${Number(u.bal_mmc||0)}" />
+        <input class="w90" data-k="bal_ton" value="${Number(u.bal_ton||0)}" />
+        <div class="small" style="margin-top:6px;">USDT / STARS</div>
+        <input class="w90" data-k="bal_usdt" value="${Number(u.bal_usdt||0)}" />
+        <input class="w90" data-k="bal_stars" value="${Number(u.bal_stars||0)}" />
+      </td>
 
-      <td><button class="save-btn">OK</button></td>
+      <td>
+        <div class="small">status</div>
+        <input class="w120" data-k="wallet_status" value="${u.wallet_status||''}" />
+        <div class="small" style="margin-top:6px;">address</div>
+        <input style="width:220px" data-k="wallet_address" value="${u.wallet_address||''}" />
+      </td>
+
+      <td>
+        <div class="small">minutes</div>
+        <input class="w90" data-k="minutes_in_app" value="${Number(u.minutes_in_app||0)}" />
+        <div class="small" style="margin-top:6px;">last_seen</div>
+        <div class="small">${u.last_seen}</div>
+      </td>
+
+      <td>
+        <button data-act="save">Сохранить</button>
+      </td>
     `;
 
-    tr.querySelector(".save-btn").onclick = () => saveUser(base, u.user_id, tr);
-    tb.appendChild(tr);
+    tr.querySelector('[data-act="save"]').addEventListener("click", async () => {
+      const payload = { user_id: u.user_id };
+      tr.querySelectorAll("input[data-k]").forEach(inp => {
+        const k = inp.dataset.k;
+        let v = inp.value;
+
+        // числа приводим
+        if (["win_chance","bal_mmc","bal_ton","bal_usdt","bal_stars"].includes(k)) v = Number(v);
+        if (["gen_level","t_wallet_seconds","t_seed_seconds","minutes_in_app"].includes(k)) v = parseInt(v || "0", 10);
+
+        payload[k] = v;
+      });
+
+      try{
+        setStatus("Сохраняю...", true);
+        await apiPost("/admin/user/update", payload);
+        setStatus("✅ Сохранено", true);
+        await reload();
+      }catch(e){
+        setStatus("❌ Ошибка сохранения: "+e.message, false);
+      }
+    });
+
+    return tr;
+  }
+
+  async function reload(){
+    try{
+      setStatus("Загружаю пользователей...", true);
+      const data = await apiGet("/admin/users");
+      $("supply").textContent = (data.mmmcoin_total_supply ?? "—");
+      const tb = $("tbody");
+      tb.innerHTML = "";
+      (data.users || []).forEach(u => tb.appendChild(trUser(u)));
+      setStatus("✅ Готово", true);
+    }catch(e){
+      setStatus("❌ Ошибка загрузки: "+e.message, false);
+    }
+  }
+
+  $("btnSaveKey").addEventListener("click", () => {
+    localStorage.setItem("admin_api_key", getKey());
+    localStorage.setItem("admin_api_base", getBase());
+    setStatus("Ключ/база сохранены в браузере", true);
   });
-}
+  $("btnReload").addEventListener("click", reload);
 
-async function saveUser(base, userId, tr) {
-  const data = { user_id: userId };
-
-  tr.querySelectorAll("input[data-f]").forEach(inp => {
-    data[inp.dataset.f] = inp.value;
-  });
-
-  const r = await fetch(base + "/admin/user/update", {
-    method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify(data)
-  });
-
-  const j = await r.json();
-  if (!j.ok) alert("Ошибка сохранения");
-}
-
-async function loadEvents(base) {
-  const r = await fetch(base + "/admin/events?limit=10", { headers: getHeaders() });
-  const j = await r.json();
-  if (!j.ok) return;
-
-  const texts = j.events.map(e =>
-    `[${new Date(e.ts * 1000).toLocaleTimeString()}] ${e.type} ${e.payload || ""}`
-  );
-
-  $("ticker").innerHTML = `<span>${texts.join(" • ")}</span>`;
-}
-
-(function init() {
-  $("apiBase").value = localStorage.getItem("ADMIN_API_BASE") || "";
-  $("apiKey").value = localStorage.getItem("ADMIN_API_KEY") || "";
-})();
+  loadSaved();
+  reload();
 </script>
-
 </body>
 </html>
