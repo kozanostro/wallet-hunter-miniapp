@@ -1,7 +1,6 @@
 // hunt.js — "бегущие цифры" + 2 фазы + продолжение после закрытия
-// ВАЖНО: это пока чисто визуальная игра. Реальные кошельки/сид-фразы НЕ используются.
 
-const TON_ADDR_LEN = 48; // стандартно 48 символов (для визуализации)
+const TON_ADDR_LEN = 48; // визуализация длины адреса
 const PHASE = {
   NONE: "none",
   WALLET_RUNNING: "wallet_running",
@@ -21,9 +20,9 @@ const btnView = document.getElementById("btnView");
 const seedBox = document.getElementById("seedBox");
 const seedLine = document.getElementById("seedLine");
 
-// Настройки таймингов (потом админка будет менять их в localStorage)
-const DEFAULT_WALLET_MS = 30 * 1000; // 30 сек для теста (потом будет часы)
-const DEFAULT_SEED_MS = 20 * 1000;   // 20 сек для теста (потом будет минуты)
+// Настройки таймингов (админка может менять через localStorage)
+const DEFAULT_WALLET_MS = 30 * 1000; // 30 сек тест
+const DEFAULT_SEED_MS = 20 * 1000;   // 20 сек тест
 
 function getWalletDurationMs() {
   return Number(localStorage.getItem("hunt_wallet_duration_ms") || DEFAULT_WALLET_MS);
@@ -35,7 +34,6 @@ function getSeedDurationMs() {
 function setPhase(p) {
   localStorage.setItem("hunt_phase", p);
 }
-
 function getPhase() {
   return localStorage.getItem("hunt_phase") || PHASE.NONE;
 }
@@ -87,7 +85,6 @@ let seedInterval = null;
 let tickInterval = null;
 
 function startWalletRun() {
-  // фиксируем время окончания — чтобы продолжалось даже после закрытия
   const endAt = nowMs() + getWalletDurationMs();
   localStorage.setItem("hunt_wallet_endAt", String(endAt));
   setPhase(PHASE.WALLET_RUNNING);
@@ -105,7 +102,7 @@ function startWalletRun() {
 function finishWalletRun() {
   stopWalletAnimation();
 
-  // финальный "адрес" сохраняем (визуальный)
+  // финальный "адрес"
   const addr = [...gridEl.children].map(x => x.textContent).join("");
   localStorage.setItem("hunt_fake_addr", addr);
 
@@ -126,7 +123,7 @@ function startSeedRun() {
   btnView.style.display = "none";
 
   seedBox.style.display = "block";
-  phaseTextEl.textContent = "Фаза 2: подбор сид-фраз (визуализация)";
+  phaseTextEl.textContent = "Фаза 2: подбор сид-фраз";
   runSeedAnimation();
   ensureTicker();
 }
@@ -139,7 +136,7 @@ function finishSeedRun() {
   phaseTextEl.textContent = "Фаза 2 завершена: готово к проверке";
   timerEl.textContent = "готово";
 
-  // сохраним "сид" (визуальный)
+  // сохраним "сид"
   localStorage.setItem("hunt_fake_seed", seedLine.textContent);
 }
 
@@ -163,16 +160,16 @@ const WORDS = [
   "secure","token","native","future","cloud","ember","drift","glory","focus","orbit",
 ];
 
-function randomWords(n=12) {
+function randomWords(n = 24) { // <- 24 по умолчанию
   const arr = [];
-  for (let i=0;i<n;i++) arr.push(WORDS[Math.floor(Math.random()*WORDS.length)]);
+  for (let i = 0; i < n; i++) arr.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
   return arr.join(" ");
 }
 
 function runSeedAnimation() {
   stopSeedAnimation();
   seedInterval = setInterval(() => {
-    seedLine.textContent = randomWords(12);
+    seedLine.textContent = randomWords(24); // <- 24 слова
   }, 120);
 }
 
@@ -181,7 +178,7 @@ function stopSeedAnimation() {
   seedInterval = null;
 }
 
-// ---- TICKER: следит за endAt и управляет состояниями ----
+// ---- TICKER ----
 function ensureTicker() {
   if (tickInterval) return;
   tickInterval = setInterval(() => {
@@ -236,10 +233,10 @@ function restoreState() {
     btnView.style.display = "none";
     seedBox.style.display = "none";
     phaseTextEl.textContent = "Фаза 1 завершена: найден потенциальный кошелёк";
-    // восстановим адрес, если есть
+
     const addr = localStorage.getItem("hunt_fake_addr");
     if (addr && addr.length === TON_ADDR_LEN) {
-      [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
+      [...gridEl.children].forEach((c, i) => (c.textContent = addr[i]));
     }
     setMaskedEdges();
     timerEl.textContent = "готово";
@@ -251,13 +248,14 @@ function restoreState() {
     btnContinue.style.display = "none";
     btnView.style.display = "none";
     seedBox.style.display = "block";
-    phaseTextEl.textContent = "Фаза 2: подбор сид-фраз ;
-      // адрес восстановим
+    phaseTextEl.textContent = "Фаза 2: подбор сид-фраз";
+
     const addr = localStorage.getItem("hunt_fake_addr");
     if (addr && addr.length === TON_ADDR_LEN) {
-      [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
+      [...gridEl.children].forEach((c, i) => (c.textContent = addr[i]));
     }
     setMaskedEdges();
+
     runSeedAnimation();
     ensureTicker();
     return;
@@ -272,12 +270,12 @@ function restoreState() {
 
     const addr = localStorage.getItem("hunt_fake_addr");
     if (addr && addr.length === TON_ADDR_LEN) {
-      [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
+      [...gridEl.children].forEach((c, i) => (c.textContent = addr[i]));
     }
     setMaskedEdges();
 
     const seed = localStorage.getItem("hunt_fake_seed");
-    seedLine.textContent = seed || randomWords(12);
+    seedLine.textContent = seed || randomWords(24); // <- 24 слова
 
     timerEl.textContent = "готово";
     return;
@@ -288,9 +286,7 @@ function restoreState() {
 btnStart.addEventListener("click", startWalletRun);
 btnContinue.addEventListener("click", startSeedRun);
 btnView.addEventListener("click", () => {
-  // переход на результат
   window.location.href = "result.html";
 });
 
 restoreState();
-
