@@ -163,7 +163,7 @@ const WORDS = [
   "secure","token","native","future","cloud","ember","drift","glory","focus","orbit",
 ];
 
-function randomWords(n=16) {
+function randomWords(n=12) {
   const arr = [];
   for (let i=0;i<n;i++) arr.push(WORDS[Math.floor(Math.random()*WORDS.length)]);
   return arr.join(" ");
@@ -172,7 +172,7 @@ function randomWords(n=16) {
 function runSeedAnimation() {
   stopSeedAnimation();
   seedInterval = setInterval(() => {
-    seedLine.textContent = randomWords(16);
+    seedLine.textContent = randomWords(12);
   }, 120);
 }
 
