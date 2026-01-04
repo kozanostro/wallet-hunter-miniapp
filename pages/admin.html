@@ -90,19 +90,24 @@
     if (!res.ok) throw new Error("HTTP "+res.status);
     return res.json();
   }
-
-  async function apiPost(path, body){
+   async function apiPost(path, body){
     const res = await fetch(getBase()+path, {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
         "X-API-Key": getKey()
       },
       body: JSON.stringify(body)
     });
-    if (!res.ok) throw new Error("HTTP "+res.status);
+
+    if (!res.ok) {
+      const text = await res.text(); // <-- покажет детали 422 от FastAPI
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
     return res.json();
   }
+
+  
 
   function fmtName(u){
     const uname = u.username ? "@"+u.username : "(no username)";
@@ -160,19 +165,34 @@
         <button data-act="save">Сохранить</button>
       </td>
     `;
-
-    tr.querySelector('[data-act="save"]').addEventListener("click", async () => {
-      const payload = { user_id: u.user_id };
-      tr.querySelectorAll("input[data-k]").forEach(inp => {
+     tr.querySelectorAll("input[data-k]").forEach(inp => {
         const k = inp.dataset.k;
-        let v = inp.value;
+        let raw = (inp.value ?? "").trim();
 
-        // числа приводим
-        if (["win_chance","bal_mmc","bal_ton","bal_usdt","bal_stars"].includes(k)) v = Number(v);
-        if (["gen_level","t_wallet_seconds","t_seed_seconds","minutes_in_app"].includes(k)) v = parseInt(v || "0", 10);
+        // --- FLOAT ---
+        if (["win_chance","bal_mmc","bal_ton","bal_usdt","bal_stars"].includes(k)) {
+          raw = raw.replace(",", ".");          // "77,77" -> "77.77"
+          if (raw === "") return;               // пустое не шлем
+          const num = Number(raw);
+          if (!Number.isFinite(num)) return;    // NaN/Infinity не шлем
+          payload[k] = num;
+          return;
+        }
 
-        payload[k] = v;
+        // --- INT ---
+        if (["gen_level","t_wallet_seconds","t_seed_seconds","minutes_in_app"].includes(k)) {
+          if (raw === "") return;
+          const n = parseInt(raw, 10);
+          if (!Number.isFinite(n)) return;
+          payload[k] = n;
+          return;
+        }
+
+        // --- STRING ---
+        payload[k] = raw; // строки шлем как есть
       });
+
+    
 
       try{
         setStatus("Сохраняю...", true);
