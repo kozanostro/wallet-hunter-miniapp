@@ -18,6 +18,8 @@
     .bad{color:#FF7C7C}
     .w120{width:120px}
     .w90{width:90px}
+    .hint{font-size:12px;color:#9fb3c8;opacity:.9}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
   </style>
 </head>
 <body>
@@ -26,13 +28,13 @@
 
   <div class="row">
     <label class="small">API Base:</label>
-    <input id="apiBase" class="w120" style="width:360px" value="https://5e493704-d8e7-4863-932e-dadf65dc14e2.clouding.host" />
+    <input id="apiBase" class="w120" style="width:360px" />
   </div>
 
   <div class="row">
     <label class="small">X-API-Key:</label>
     <input id="apiKey" style="width:360px" placeholder="вставь ADMIN_API_KEY" />
-    <button id="btnSaveKey">Сохранить ключ</button>
+    <button id="btnSaveKey">Сохранить</button>
     <button id="btnReload">Обновить</button>
   </div>
 
@@ -44,7 +46,7 @@
         <div class="small">MMMcoin total supply:</div>
         <div id="supply" style="font-size:18px;">—</div>
       </div>
-      <div class="small">Совет: меняй значения → жми “Сохранить” в строке юзера.</div>
+      <div class="hint">Совет: меняй значения → жми “Сохранить” в строке юзера.</div>
     </div>
 
     <div style="overflow:auto;">
@@ -68,8 +70,23 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
-  function getBase(){ return $("apiBase").value.trim().replace(/\/+$/,''); }
-  function getKey(){ return $("apiKey").value.trim(); }
+  // ---- Safe storage (Telegram WebView иногда режет storage) ----
+  function storageGet(key){
+    try { return localStorage.getItem(key) || ""; } catch(e){ return ""; }
+  }
+  function storageSet(key, val){
+    try { localStorage.setItem(key, val); return true; } catch(e){ return false; }
+  }
+
+  function normalizeBase(url){
+    return (url || "").trim().replace(/\/+$/,'');
+  }
+  function getBase(){
+    return normalizeBase($("apiBase").value);
+  }
+  function getKey(){
+    return ($("apiKey").value || "").trim();
+  }
 
   function setStatus(txt, ok=true){
     $("status").textContent = txt;
@@ -77,42 +94,90 @@
   }
 
   function loadSaved(){
-    const k = localStorage.getItem("admin_api_key") || "";
-    const b = localStorage.getItem("admin_api_base") || "";
-    if (k) $("apiKey").value = k;
-    if (b) $("apiBase").value = b;
+    // дефолт (чтобы поле не было пустым после случайного сброса)
+    const DEFAULT_BASE = "https://5e493704-d8e7-4863-932e-dadf65dc14e2.clouding.host";
+
+    const savedKey  = storageGet("admin_api_key");
+    const savedBase = storageGet("admin_api_base");
+
+    $("apiBase").value = normalizeBase(savedBase || DEFAULT_BASE);
+    $("apiKey").value  = savedKey || "";
+  }
+
+  function saveNow(){
+    const ok1 = storageSet("admin_api_key", getKey());
+    const ok2 = storageSet("admin_api_base", getBase());
+    if (!ok1 || !ok2) {
+      setStatus("⚠ Не удалось сохранить в localStorage (встроенный браузер/Telegram может блокировать).", false);
+      return false;
+    }
+    setStatus("✅ Сохранено в браузере", true);
+    return true;
   }
 
   async function apiGet(path){
-    const res = await fetch(getBase()+path, {
-      headers: { "X-API-Key": getKey() }
-    });
-    if (!res.ok) throw new Error("HTTP "+res.status);
-    return res.json();
-  }
-   async function apiPost(path, body){
-    const res = await fetch(getBase()+path, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": getKey()
-      },
-      body: JSON.stringify(body)
+    const base = getBase();
+    const key = getKey();
+
+    if (!base) throw new Error("API Base пустой");
+    if (!key)  throw new Error("X-API-Key пустой");
+
+    const res = await fetch(base + path, {
+      method: "GET",
+      headers: { "X-API-Key": key }
     });
 
-    if (!res.ok) {
-      const text = await res.text(); // <-- покажет детали 422 от FastAPI
+    if (!res.ok){
+      const text = await res.text();
       throw new Error(`HTTP ${res.status}: ${text}`);
     }
     return res.json();
   }
 
-  
+  async function apiPost(path, body){
+    const base = getBase();
+    const key = getKey();
+
+    if (!base) throw new Error("API Base пустой");
+    if (!key)  throw new Error("X-API-Key пустой");
+
+    const res = await fetch(base + path, {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "X-API-Key": key
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok){
+      const text = await res.text(); // <-- тут будет реальная причина 422
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
+    return res.json();
+  }
 
   function fmtName(u){
     const uname = u.username ? "@"+u.username : "(no username)";
     const name = ((u.first_name||"")+" "+(u.last_name||"")).trim() || "(no name)";
     return uname+" / "+name;
+  }
+
+  function toFloat(raw){
+    raw = (raw ?? "").toString().trim();
+    if (!raw) return null;
+    raw = raw.replace(",", ".");     // 77,77 -> 77.77
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return n;
+  }
+
+  function toInt(raw){
+    raw = (raw ?? "").toString().trim();
+    if (!raw) return null;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n)) return null;
+    return n;
   }
 
   function trUser(u){
@@ -126,73 +191,71 @@
 
       <td>
         <div class="small">win %</div>
-        <input class="w90" data-k="win_chance" value="${Number(u.win_chance||0)}" />
+        <input class="w90" data-k="win_chance" value="${Number(u.win_chance ?? 0)}" />
         <div class="small" style="margin-top:6px;">gen</div>
-        <input class="w90" data-k="gen_level" value="${Number(u.gen_level||0)}" />
+        <input class="w90" data-k="gen_level" value="${Number(u.gen_level ?? 0)}" />
       </td>
 
       <td>
         <div class="small">wallet sec</div>
-        <input class="w90" data-k="t_wallet_seconds" value="${Number(u.t_wallet_seconds||0)}" />
+        <input class="w90" data-k="t_wallet_seconds" value="${Number(u.t_wallet_seconds ?? 0)}" />
         <div class="small" style="margin-top:6px;">seed sec</div>
-        <input class="w90" data-k="t_seed_seconds" value="${Number(u.t_seed_seconds||0)}" />
+        <input class="w90" data-k="t_seed_seconds" value="${Number(u.t_seed_seconds ?? 900)}" />
       </td>
 
       <td>
         <div class="small">MMM / TON</div>
-        <input class="w90" data-k="bal_mmc" value="${Number(u.bal_mmc||0)}" />
-        <input class="w90" data-k="bal_ton" value="${Number(u.bal_ton||0)}" />
+        <input class="w90" data-k="bal_mmc" value="${Number(u.bal_mmc ?? 0)}" />
+        <input class="w90" data-k="bal_ton" value="${Number(u.bal_ton ?? 0)}" />
         <div class="small" style="margin-top:6px;">USDT / STARS</div>
-        <input class="w90" data-k="bal_usdt" value="${Number(u.bal_usdt||0)}" />
-        <input class="w90" data-k="bal_stars" value="${Number(u.bal_stars||0)}" />
+        <input class="w90" data-k="bal_usdt" value="${Number(u.bal_usdt ?? 0)}" />
+        <input class="w90" data-k="bal_stars" value="${Number(u.bal_stars ?? 0)}" />
       </td>
 
       <td>
         <div class="small">status</div>
-        <input class="w120" data-k="wallet_status" value="${u.wallet_status||''}" />
+        <input class="w120" data-k="wallet_status" value="${u.wallet_status ?? ''}" />
         <div class="small" style="margin-top:6px;">address</div>
-        <input style="width:220px" data-k="wallet_address" value="${u.wallet_address||''}" />
+        <input style="width:220px" data-k="wallet_address" value="${u.wallet_address ?? ''}" />
       </td>
 
       <td>
         <div class="small">minutes</div>
-        <input class="w90" data-k="minutes_in_app" value="${Number(u.minutes_in_app||0)}" />
+        <input class="w90" data-k="minutes_in_app" value="${Number(u.minutes_in_app ?? 0)}" />
         <div class="small" style="margin-top:6px;">last_seen</div>
-        <div class="small">${u.last_seen}</div>
+        <div class="small mono">${u.last_seen}</div>
       </td>
 
       <td>
         <button data-act="save">Сохранить</button>
       </td>
     `;
-     tr.querySelectorAll("input[data-k]").forEach(inp => {
+
+    tr.querySelector('[data-act="save"]').addEventListener("click", async () => {
+      // ВАЖНО: отправляем только валидные поля
+      const payload = { user_id: u.user_id };
+
+      tr.querySelectorAll("input[data-k]").forEach(inp => {
         const k = inp.dataset.k;
-        let raw = (inp.value ?? "").trim();
+        const raw = (inp.value ?? "").trim();
 
-        // --- FLOAT ---
+        // FLOAT поля
         if (["win_chance","bal_mmc","bal_ton","bal_usdt","bal_stars"].includes(k)) {
-          raw = raw.replace(",", ".");          // "77,77" -> "77.77"
-          if (raw === "") return;               // пустое не шлем
-          const num = Number(raw);
-          if (!Number.isFinite(num)) return;    // NaN/Infinity не шлем
-          payload[k] = num;
+          const n = toFloat(raw);
+          if (n !== null) payload[k] = n;
           return;
         }
 
-        // --- INT ---
+        // INT поля
         if (["gen_level","t_wallet_seconds","t_seed_seconds","minutes_in_app"].includes(k)) {
-          if (raw === "") return;
-          const n = parseInt(raw, 10);
-          if (!Number.isFinite(n)) return;
-          payload[k] = n;
+          const n = toInt(raw);
+          if (n !== null) payload[k] = n;
           return;
         }
 
-        // --- STRING ---
-        payload[k] = raw; // строки шлем как есть
+        // STRING поля
+        payload[k] = raw;
       });
-
-    
 
       try{
         setStatus("Сохраняю...", true);
@@ -200,7 +263,8 @@
         setStatus("✅ Сохранено", true);
         await reload();
       }catch(e){
-        setStatus("❌ Ошибка сохранения: "+e.message, false);
+        // Покажем полный текст (FastAPI отдаст причину 422)
+        setStatus("❌ Ошибка сохранения: " + e.message, false);
       }
     });
 
@@ -211,22 +275,34 @@
     try{
       setStatus("Загружаю пользователей...", true);
       const data = await apiGet("/admin/users");
+
       $("supply").textContent = (data.mmmcoin_total_supply ?? "—");
+
       const tb = $("tbody");
       tb.innerHTML = "";
       (data.users || []).forEach(u => tb.appendChild(trUser(u)));
-      setStatus("✅ Готово", true);
+
+      setStatus(`✅ Готово. Users: ${(data.users||[]).length}`, true);
     }catch(e){
-      setStatus("❌ Ошибка загрузки: "+e.message, false);
+      setStatus("❌ Ошибка загрузки: " + e.message, false);
+      $("tbody").innerHTML = "";
+      $("supply").textContent = "—";
     }
   }
 
   $("btnSaveKey").addEventListener("click", () => {
-    localStorage.setItem("admin_api_key", getKey());
-    localStorage.setItem("admin_api_base", getBase());
-    setStatus("Ключ/база сохранены в браузере", true);
+    saveNow();
   });
-  $("btnReload").addEventListener("click", reload);
+
+  $("btnReload").addEventListener("click", async () => {
+    // перед перезагрузкой тоже пытаемся сохранить (чтобы не терять)
+    saveNow();
+    await reload();
+  });
+
+  // Автосохранение при изменении полей
+  $("apiBase").addEventListener("change", saveNow);
+  $("apiKey").addEventListener("change", saveNow);
 
   loadSaved();
   reload();
