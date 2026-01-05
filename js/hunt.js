@@ -19,6 +19,11 @@ const PHASE = {
 
 const gridEl = document.getElementById("grid");
 const timerEl = document.getElementById("timer");
+const checkedStatsEl = document.getElementById("checkedStats");
+
+let checkedWallets = 0;
+let walletsPerSecond = 0; // будет зависеть от скорости
+
 const phaseTextEl = document.getElementById("phaseText");
 const statsEl = document.getElementById("stats");
 
@@ -99,6 +104,11 @@ function startWalletScan() {
   startAt = now();
   checkedWallets = 0;
 
+  // скорость (для теста)
+  // обычный юзер: 30–60 / сек
+  walletsPerSecond = 40;
+
+
   localStorage.setItem("wh_phase", PHASE.WALLET);
   localStorage.setItem("wh_startAt", startAt);
 
@@ -148,6 +158,12 @@ function startTicker() {
 
     if (phase === PHASE.SEED) {
       seedLine.textContent = randomSeed();
+      checkedWallets += walletsPerSecond;
+    if (checkedStatsEl) {
+      checkedStatsEl.textContent =
+      "Проверено кошельков: " + checkedWallets.toLocaleString();
+}
+
     }
   }, 250);
 }
