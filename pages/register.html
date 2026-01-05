@@ -1,38 +1,87 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Регистрация</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="../css/main.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WalletHunter — Кабинет</title>
+  <style>
+    body{font-family:Arial,sans-serif;margin:14px;background:#0b0f14;color:#e7eef7}
+    .card{border:1px solid #233243;border-radius:12px;padding:12px;margin-bottom:12px;background:#0f1622}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .small{font-size:12px;color:#9fb3c8}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #2b3a4a;background:#101826;color:#e7eef7;cursor:pointer}
+    input{padding:8px;border-radius:8px;border:1px solid #2b3a4a;background:#101826;color:#e7eef7}
+  </style>
 </head>
 <body>
-  <h2>Регистрация</h2>
-  <p id="info">Загрузка...</p>
+  <h2 style="margin:0 0 10px 0;">Кабинет</h2>
 
-  <button id="btn">✅ Зарегистрироваться</button>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <div class="small">Пользователь</div>
+        <div id="who">—</div>
+      </div>
+      <div>
+        <div class="small">MMMcoin total supply</div>
+        <div id="supply">—</div>
+      </div>
+    </div>
+  </div>
 
-  <script>
-    function getUser() {
-      try { return JSON.parse(localStorage.getItem("tg_user") || "null"); }
-      catch { return null; }
+  <div class="card">
+    <div class="small">Баланс MMMcoin</div>
+    <div id="bal_mmc" style="font-size:22px;margin:6px 0 2px 0;">—</div>
+    <div class="small" id="gen" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="row">
+    <button id="btnStart">Начать</button>
+  </div>
+
+<script>
+  // настрой свою BASE под прод:
+  const API_BASE = (window.WH_API_BASE) || "https://5e493704-d8e7-4863-932e-dadf65dc14e2.clouding.host";
+
+  // из Telegram WebApp можно вытащить user_id; для веб-версии попросим query-параметр ?uid=...
+  function getUserId(){
+    const u = new URLSearchParams(location.search).get("uid");
+    return u ? Number(u) : null;
+  }
+
+  async function getConfig(userId){
+    const res = await fetch(`${API_BASE}/config?user_id=${userId}`);
+    if (!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
+  }
+
+  async function init(){
+    const userId = getUserId();
+    if (!userId){
+      document.getElementById("who").textContent = "user_id не передан (uid=...)";
+      return;
+    }
+    document.getElementById("who").textContent = "ID: " + userId;
+
+    try{
+      const cfg = await getConfig(userId);
+      document.getElementById("bal_mmc").textContent = (cfg.bal_mmc ?? 0).toFixed(3);
+      document.getElementById("supply").textContent = (cfg.mmmcoin_total_supply ?? 30000000).toLocaleString();
+
+      const speed = Number(cfg.gen_level||0);
+      document.getElementById("gen").textContent = "Скорость: x"+(speed>0?speed:1);
+    }catch(e){
+      document.getElementById("bal_mmc").textContent = "ошибка загрузки";
+      console.error(e);
     }
 
-    const u = getUser();
+    document.getElementById("btnStart").addEventListener("click", () => {
+      // пока ведём напрямую на поиск (hunt.html). Позже — на экран выбора кошелька.
+      location.href = "hunt.html";
+    });
+  }
 
-    if (!u) {
-      document.getElementById("info").innerText =
-        "Пользователь не найден. Открой Mini App через Telegram-бота.";
-      document.getElementById("btn").style.display = "none";
-    } else {
-      document.getElementById("info").innerText =
-        `Пользователь: @${u.username || "-"} | ID: ${u.id}`;
-    }
-
-    document.getElementById("btn").onclick = () => {
-      localStorage.setItem("registered", "true");
-      window.location.href = "dashboard.html";
-    };
-  </script>
+  init();
+</script>
 </body>
 </html>
