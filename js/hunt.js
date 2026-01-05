@@ -1,5 +1,7 @@
 // hunt.js — WalletHunter (TON)
 // Визуализация процесса. Реальных кошельков не используется.
+console.log("HUNT.JS VERSION 999 LOADED");
+alert("HUNT.JS VERSION 999 LOADED");
 
 const TON_ADDR_LEN = 48;
 const SEED_WORDS_COUNT = 24;
