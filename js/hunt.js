@@ -1,11 +1,8 @@
-// hunt.js — WalletHunter (TON) + маска + seed speed x2 + стоп счётчиков на SEED
-console.log("HUNT.JS LOADED");
+// hunt.js — WalletHunter (TON) визуализация
 
-// ================= URL PARAM =================
 const params = new URLSearchParams(window.location.search);
 const WALLET_TYPE = params.get("wallet") || "ton";
 
-// ================= WALLET CONFIG =================
 const WALLET_CONFIG = {
   ton: { title: "TON Wallet Scan", addrLen: 48 },
   trust: { title: "Trust Wallet Scan (soon)", addrLen: 40 },
@@ -13,27 +10,26 @@ const WALLET_CONFIG = {
 };
 const WALLET = WALLET_CONFIG[WALLET_TYPE] || WALLET_CONFIG.ton;
 
-// ================= BASIC CONFIG =================
-const ADDR_LEN = WALLET.addrLen;
-const SEED_WORDS_COUNT = 24;
+// ====== TEST TIMINGS (меняй здесь) ======
+const DEFAULT_WALLET_MS = 15 * 1000; // 15 секунд
+const DEFAULT_SEED_MS   = 10 * 1000; // 10 секунд
 
-// скорость “проверено кошельков” (только на фазе WALLET)
+// скорости (визуально)
 const SPEED_BASE = 40; // кошельков/сек при x1
 let speedX = 1;
 
-// скорость обновления сид-фраз (x2 от нынешнего)
-// раньше обновлялось раз в 250мс (в тикере), теперь будет 125мс
-const SEED_UPDATE_MS = 125;
+// seed-анимация
+const SEED_WORDS_COUNT = 24;
+const SEED_UPDATE_MS = 125; // x2
 
-// ================= PHASE =================
 const PHASE = {
   NONE: "none",
-  WALLET: "wallet",
-  SEED: "seed",
-  DONE: "done",
+  WALLET_RUNNING: "wallet_running",
+  WALLET_DONE: "wallet_done",
+  SEED_RUNNING: "seed_running",
+  SEED_DONE: "seed_done",
 };
 
-// ================= DOM =================
 const gridEl = document.getElementById("grid");
 const timerEl = document.getElementById("timer");
 const phaseTextEl = document.getElementById("phaseText");
@@ -46,18 +42,19 @@ const btnView = document.getElementById("btnView");
 const seedBox = document.getElementById("seedBox");
 const seedLine = document.getElementById("seedLine");
 
-// ================= STATE =================
-let startAt = 0;
 let checkedWallets = 0;
+let startAt = 0;
+let endAt = 0;
 
-let animInterval = null;     // анимация символов
-let walletTick = null;       // тикер WALLET (таймер + checked)
-let seedInterval = null;     // обновление seed текста
+let animInterval = null;
+let tickInterval = null;
+let seedInterval = null;
 
-// ================= UTIL =================
-function now() { return Date.now(); }
+// ---------- helpers ----------
+const now = () => Date.now();
 
 function fmtTime(ms) {
+  if (ms < 0) ms = 0;
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   const r = s % 60;
@@ -69,10 +66,25 @@ function randomChar() {
   return chars[Math.floor(Math.random() * chars.length)];
 }
 
-// ================= GRID =================
+function setPhase(p) {
+  localStorage.setItem("wh_phase", p);
+}
+
+function getPhase() {
+  return localStorage.getItem("wh_phase") || PHASE.NONE;
+}
+
+function getWalletDurationMs() {
+  return Number(localStorage.getItem("wh_wallet_ms") || DEFAULT_WALLET_MS);
+}
+function getSeedDurationMs() {
+  return Number(localStorage.getItem("wh_seed_ms") || DEFAULT_SEED_MS);
+}
+
+// ---------- grid ----------
 function makeGrid() {
   gridEl.innerHTML = "";
-  for (let i = 0; i < ADDR_LEN; i++) {
+  for (let i = 0; i < WALLET.addrLen; i++) {
     const d = document.createElement("div");
     d.className = "cell";
     d.textContent = randomChar();
@@ -92,40 +104,47 @@ function stopGridAnim() {
   animInterval = null;
 }
 
-// Маска: первые 4 и последние 4
 function setMaskedEdges() {
   const cells = [...gridEl.children];
-  for (const c of cells) c.classList.remove("mask");
+  cells.forEach(c => c.classList.remove("mask"));
   for (let i = 0; i < 4; i++) {
-    if (cells[i]) cells[i].classList.add("mask");
-    const j = cells.length - 1 - i;
-    if (cells[j]) cells[j].classList.add("mask");
+    cells[i]?.classList.add("mask");
+    cells[cells.length - 1 - i]?.classList.add("mask");
   }
 }
 
-// Сохраняем текущий “адрес” (визуальный) в localStorage
-function saveAddrToStorage() {
-  const addr = [...gridEl.children].map(x => x.textContent).join("");
+function saveAddr() {
+  const addr = [...gridEl.children].map(c => c.textContent).join("");
   localStorage.setItem("wh_fake_addr", addr);
 }
 
-function restoreAddrFromStorage() {
+function restoreAddr() {
   const addr = localStorage.getItem("wh_fake_addr") || "";
-  if (addr.length === ADDR_LEN) {
+  if (addr.length === WALLET.addrLen) {
     [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
   }
 }
 
-// ================= SEED =================
-// 50+ слов (можешь расширять сколько хочешь)
-const WORDS = [
-  "apple","night","river","gold","stone","ocean","green","laser","silent","shadow",
-  "planet","matrix","crypto","wolf","orbit","signal","vector","random","vault","hunter",
-  "secure","token","native","future","cloud","ember","drift","focus","glory","binary",
-  "silver","winter","summer","autumn","spring","mirror","rocket","comet","nebula","quantum",
-  "cipher","kernel","buffer","thread","socket","vectorize","ledger","wallet","bridge","shard",
-  "phoenix","dragon","falcon","anchor","beacon","vertex"
+// ---------- seed words ----------
+const WORDS_3 = [
+  "sun","ice","box","jet","key","map","run","dot","bit","hex",
+  "air","sky","cpu","ram","net","usb","app","gas","log","mix",
+  "sec","pin","bug","alt","tab","row","col","tag","zip","dns"
 ];
+
+const WORDS_4 = [
+  "node","hash","mint","fork","seed","coin","scan","link","salt","zero",
+  "unit","byte","chip","data","time","code","pool","ring","path","lock",
+  "sign","swap","burn","cold","ping","mask","flow","rate","trust","meta"
+];
+
+const WORDS_LONG = [
+  "planet","matrix","crypto","hunter","secure","future","binary","quantum",
+  "wallet","bridge","ledger","vector","random","signal","native","shadow",
+  "orbit","vault","token","ember","drift","focus","glory","beacon","vertex"
+];
+
+const WORDS = [...WORDS_3, ...WORDS_4, ...WORDS_LONG];
 
 function randomSeed() {
   const arr = [];
@@ -147,34 +166,59 @@ function stopSeedAnimation() {
   seedInterval = null;
 }
 
-// ================= WALLET TICKER =================
-// ВАЖНО: работает ТОЛЬКО на фазе WALLET
-function startWalletTicker() {
-  stopWalletTicker();
-  walletTick = setInterval(() => {
-    const elapsed = now() - startAt;
-    timerEl.textContent = fmtTime(elapsed);
+// ---------- ticker ----------
+function startTicker() {
+  if (tickInterval) return;
 
-    const delta = Math.floor((SPEED_BASE * speedX) / 4); // шаг раз в 250мс
-    checkedWallets += delta;
+  tickInterval = setInterval(() => {
+    const phase = getPhase();
 
-    statsEl.textContent = `Проверено кошельков: ${checkedWallets.toLocaleString()}`;
+    // 1) Wallet running: таймер + счётчик растут
+    if (phase === PHASE.WALLET_RUNNING) {
+      const elapsed = now() - startAt;
+      timerEl.textContent = fmtTime(elapsed);
+
+      const delta = Math.floor((SPEED_BASE * speedX) / 4);
+      checkedWallets += delta;
+      statsEl.textContent = `Проверено кошельков: ${checkedWallets.toLocaleString()}`;
+
+      // финиш по времени
+      if (now() >= endAt) {
+        finishWalletRun();
+      }
+      return;
+    }
+
+    // 2) Seed running: таймер можно показать (если хочешь), но кошельки НЕ считаем
+    if (phase === PHASE.SEED_RUNNING) {
+      const left = endAt - now();
+      timerEl.textContent = fmtTime(left);
+
+      if (left <= 0) {
+        finishSeedRun();
+      }
+      return;
+    }
   }, 250);
 }
 
-function stopWalletTicker() {
-  if (walletTick) clearInterval(walletTick);
-  walletTick = null;
+function stopTicker() {
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = null;
 }
 
-// ================= FLOW =================
-function startWalletScan() {
+// ---------- flow ----------
+function startWalletRun() {
   startAt = now();
+  endAt = startAt + getWalletDurationMs();
   checkedWallets = 0;
 
-  localStorage.setItem("wh_phase", PHASE.WALLET);
   localStorage.setItem("wh_startAt", String(startAt));
+  localStorage.setItem("wh_endAt", String(endAt));
   localStorage.removeItem("wh_fake_addr");
+  localStorage.removeItem("wh_fake_seed");
+
+  setPhase(PHASE.WALLET_RUNNING);
 
   btnStart.style.display = "none";
   btnContinue.style.display = "none";
@@ -182,137 +226,136 @@ function startWalletScan() {
   seedBox.style.display = "none";
 
   phaseTextEl.textContent = WALLET.title;
+  timerEl.textContent = "0с";
+  statsEl.textContent = "Проверено кошельков: 0";
 
   animateGrid();
-  startWalletTicker();
+  startTicker();
 }
 
-function finishWalletScan() {
-  // фиксируем адрес, останавливаем анимацию, включаем маску
+function finishWalletRun() {
   stopGridAnim();
-  stopWalletTicker();
 
-  saveAddrToStorage();
-  restoreAddrFromStorage();
+  saveAddr();
+  restoreAddr();
   setMaskedEdges();
 
-  // на экране покажем итог, но счётчики больше не растут
+  setPhase(PHASE.WALLET_DONE);
+
   timerEl.textContent = "готово";
-  statsEl.textContent = `Проверено кошельков: ${checkedWallets.toLocaleString()}`;
+  // statsEl оставляем как есть
 
   btnContinue.style.display = "inline-block";
+  btnView.style.display = "none";
+  seedBox.style.display = "none";
+
+  phaseTextEl.textContent = "Найден потенциальный кошелёк";
 }
 
-function startSeedScan() {
-  // Переходим к сид-фразам: таймер и checked НЕ должны расти -> тикер выключен
-  localStorage.setItem("wh_phase", PHASE.SEED);
+function startSeedRun() {
+  // seed идёт фиксированное время
+  startAt = now();
+  endAt = startAt + getSeedDurationMs();
+  localStorage.setItem("wh_startAt", String(startAt));
+  localStorage.setItem("wh_endAt", String(endAt));
+
+  setPhase(PHASE.SEED_RUNNING);
 
   btnContinue.style.display = "none";
   btnView.style.display = "none";
   seedBox.style.display = "block";
 
-  phaseTextEl.textContent = "Seed phrase analysis";
-  timerEl.textContent = "—"; // стоп таймера на сид-фразах
-  // checked тоже заморожен (statsEl оставляем как есть)
+  phaseTextEl.textContent = "Подбор сид-фраз";
+  timerEl.textContent = fmtTime(getSeedDurationMs());
 
-  // адрес должен оставаться виден (замаскирован)
-  restoreAddrFromStorage();
+  // ВАЖНО: на сид-фразах НЕ увеличиваем checkedWallets (и не меняем stats)
+  restoreAddr();
   setMaskedEdges();
 
+  seedLine.textContent = randomSeed();
   startSeedAnimation();
-
-  // Показываем кнопку "посмотреть" (как у тебя сделано)
-  btnView.style.display = "inline-block";
+  startTicker();
 }
 
-function finishAll() {
-  stopGridAnim();
-  stopWalletTicker();
+function finishSeedRun() {
   stopSeedAnimation();
-  localStorage.setItem("wh_phase", PHASE.DONE);
+  setPhase(PHASE.SEED_DONE);
 
-  phaseTextEl.textContent = "Analysis complete";
+  const finalSeed = seedLine.textContent || randomSeed();
+  localStorage.setItem("wh_fake_seed", finalSeed);
+
   timerEl.textContent = "готово";
+  phaseTextEl.textContent = "Готово к проверке";
   btnView.style.display = "inline-block";
 }
 
-// ================= RESTORE =================
 function restore() {
   makeGrid();
+
   speedX = Number(localStorage.getItem("wh_speed_x") || "1");
 
-  const phase = localStorage.getItem("wh_phase") || PHASE.NONE;
+  const phase = getPhase();
   startAt = Number(localStorage.getItem("wh_startAt") || now());
+  endAt = Number(localStorage.getItem("wh_endAt") || (startAt + getWalletDurationMs()));
 
-  phaseTextEl.textContent = WALLET.title;
-
-  // базовое состояние кнопок
   btnStart.style.display = "none";
   btnContinue.style.display = "none";
   btnView.style.display = "none";
   seedBox.style.display = "none";
 
   if (phase === PHASE.NONE) {
-    btnStart.style.display = "inline-block";
+    phaseTextEl.textContent = WALLET.title;
     timerEl.textContent = "0с";
     statsEl.textContent = "";
+    btnStart.style.display = "inline-block";
     return;
   }
 
-  if (phase === PHASE.WALLET) {
+  if (phase === PHASE.WALLET_RUNNING) {
+    phaseTextEl.textContent = WALLET.title;
     animateGrid();
-    startWalletTicker();
-    // чтобы была возможность завершить WALLET вручную кнопкой (если у тебя так задумано)
-    // можно оставить continue скрытой пока не "нашло", но пока делаем просто кнопку через finish
-    // Если хочешь авто-завершение по времени — сделаем следующим шагом.
+    startTicker();
+    btnStart.style.display = "none";
     return;
   }
 
-  // если был сохранён адрес — восстановим и замаскируем
-  restoreAddrFromStorage();
-  setMaskedEdges();
+  if (phase === PHASE.WALLET_DONE) {
+    restoreAddr();
+    setMaskedEdges();
+    phaseTextEl.textContent = "Найден потенциальный кошелёк";
+    timerEl.textContent = "готово";
+    btnContinue.style.display = "inline-block";
+    return;
+  }
 
-  if (phase === PHASE.SEED) {
-    stopWalletTicker();
-    stopGridAnim();
+  if (phase === PHASE.SEED_RUNNING) {
+    restoreAddr();
+    setMaskedEdges();
+    phaseTextEl.textContent = "Подбор сид-фраз";
     seedBox.style.display = "block";
-    phaseTextEl.textContent = "Seed phrase analysis";
-    timerEl.textContent = "—";
-    statsEl.textContent = `Проверено кошельков: ${checkedWallets.toLocaleString()}`;
+    seedLine.textContent = randomSeed();
     startSeedAnimation();
+    startTicker();
+    return;
+  }
+
+  if (phase === PHASE.SEED_DONE) {
+    restoreAddr();
+    setMaskedEdges();
+    phaseTextEl.textContent = "Готово к проверке";
+    seedBox.style.display = "block";
+    seedLine.textContent = localStorage.getItem("wh_fake_seed") || randomSeed();
+    timerEl.textContent = "готово";
     btnView.style.display = "inline-block";
     return;
   }
-
-  if (phase === PHASE.DONE) {
-    finishAll();
-  }
 }
 
-// ================= BUTTONS =================
-btnStart?.addEventListener("click", startWalletScan);
-
-// ВАЖНО: у тебя сейчас нет авто-финиша WALLET, поэтому “Continue” мы включаем вручную.
-// Если у тебя уже есть логика авто-поиска — скажи, где (по времени/из API) и я сделаю правильно.
-btnContinue?.addEventListener("click", startSeedScan);
-
+// ---------- buttons ----------
+btnStart?.addEventListener("click", startWalletRun);
+btnContinue?.addEventListener("click", startSeedRun);
 btnView?.addEventListener("click", () => {
   location.href = "result.html";
 });
-
-// ================= MANUAL FINISH (для теста) =================
-// Чтобы не потерять время: сделаем простой тестовый “авто-финиш” WALLET через 10 секунд,
-// если хочешь — потом уберём или привяжем к админке/API.
-(function autoFinishForTest() {
-  const phase = localStorage.getItem("wh_phase") || PHASE.NONE;
-  if (phase === PHASE.WALLET) {
-    setTimeout(() => {
-      const p = localStorage.getItem("wh_phase");
-      if (p === PHASE.WALLET) {
-        finishWalletScan();
-      }
-    }, 10_000);
-  }
-})();
 
 restore();
