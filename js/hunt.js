@@ -5,13 +5,13 @@ const TON_ADDR_LEN = 48;
 const SEED_WORDS_COUNT = 24;
 
 // ====== ТЕСТОВЫЕ ТАЙМИНГИ (меняй тут) ======
-const DEFAULT_WALLET_SECONDS = 15;  // поиск кошелька (тест: 10-15 сек)
-const DEFAULT_SEED_SECONDS = 10;    // подбор seed (тест: 5-10 сек)
-const AUTO_RESET_AFTER_DONE_MS = 1500; // через сколько после DONE сбросить в новый цикл (готовность)
+const DEFAULT_WALLET_SECONDS = 15;
+const DEFAULT_SEED_SECONDS = 10;
+const AUTO_RESET_AFTER_DONE_MS = 1500;
 
 // ====== СКОРОСТЬ "ПРОВЕРЕНО КОШЕЛЬКОВ" ======
-const SPEED_BASE_WALLETS_PER_SEC = 60; // x1 (визуальная скорость)
-const SPEED_MULT_PER_LEVEL = 5;        // каждый уровень множителя
+const SPEED_BASE_WALLETS_PER_SEC = 60;
+const SPEED_MULT_PER_LEVEL = 5;
 
 const PHASE = {
   NONE: "none",
@@ -34,7 +34,6 @@ const btnView = document.getElementById("btnView");
 const seedBox = document.getElementById("seedBox");
 const seedLine = document.getElementById("seedLine");
 
-// Если чего-то нет в HTML — не падаем
 function must(el, name) {
   if (!el) console.warn(`[hunt.js] Missing element: ${name}`);
   return el;
@@ -51,9 +50,11 @@ const LS = {
   durationWallet: "wh_wallet_seconds",
   durationSeed: "wh_seed_seconds",
   speedX: "wh_speed_x",
+
+  // ✅ результат награды
+  result: "wh_result",
 };
 
-// --------- STATE ----------
 let animInterval = null;
 let tickInterval = null;
 
@@ -61,7 +62,7 @@ let startAt = 0;
 let walletSeconds = DEFAULT_WALLET_SECONDS;
 let seedSeconds = DEFAULT_SEED_SECONDS;
 
-let speedX = 1; // потом подтянешь из /config или админки
+let speedX = 1;
 let walletsPerSecond = SPEED_BASE_WALLETS_PER_SEC;
 
 // --------- UTIL ----------
@@ -131,11 +132,9 @@ function getStartAt() {
 }
 
 function loadConfigFromLocalStorage() {
-  // Тайминги (можно потом перезаписывать из админки)
   walletSeconds = Number(localStorage.getItem(LS.durationWallet) || DEFAULT_WALLET_SECONDS);
   seedSeconds = Number(localStorage.getItem(LS.durationSeed) || DEFAULT_SEED_SECONDS);
 
-  // Скорость (уровень/множитель)
   speedX = Number(localStorage.getItem(LS.speedX) || "1");
   if (!Number.isFinite(speedX) || speedX <= 0) speedX = 1;
 
@@ -143,18 +142,37 @@ function loadConfigFromLocalStorage() {
 }
 
 // --------- UI ----------
-function show(el, v) {
-  if (!el) return;
-  el.style.display = v ? "inline-block" : "none";
-}
-function showBlock(el, v) {
-  if (!el) return;
-  el.style.display = v ? "block" : "none";
-}
+function show(el, v) { if (el) el.style.display = v ? "inline-block" : "none"; }
+function showBlock(el, v) { if (el) el.style.display = v ? "block" : "none"; }
 
 function renderChecked(checked) {
   if (statsEl) statsEl.textContent = `Checked wallets: ${checked.toLocaleString()}`;
   if (checkedStatsEl) checkedStatsEl.textContent = `Проверено кошельков: ${checked.toLocaleString()}`;
+}
+
+// --------- RESULT (reward) ----------
+function randomRewardTon() {
+  // Визуальный “рандом”. Сделай как хочешь.
+  // Пример: чаще маленькое, редко большое
+  const r = Math.random();
+  let val = 0;
+  if (r < 0.80) val = +(Math.random() * 0.5).toFixed(3);      // 0..0.5 TON
+  else if (r < 0.97) val = +(0.5 + Math.random() * 2).toFixed(3); // 0.5..2.5 TON
+  else val = +(2.5 + Math.random() * 5).toFixed(3);          // 2.5..7.5 TON
+  return val;
+}
+
+function saveResultOnce() {
+  // если результат уже есть — не перезаписываем
+  const existing = localStorage.getItem(LS.result);
+  if (existing) return;
+
+  const rewardTon = randomRewardTon();
+  const payload = {
+    reward_ton: rewardTon,
+    ts: now(),
+  };
+  localStorage.setItem(LS.result, JSON.stringify(payload));
 }
 
 // --------- CORE LOGIC ----------
@@ -177,6 +195,9 @@ function resetToReady() {
 
 function startWalletScan() {
   loadConfigFromLocalStorage();
+
+  // ✅ новый запуск — чистим прошлый результат
+  localStorage.removeItem(LS.result);
 
   startAt = now();
   setStartAt(startAt);
@@ -202,7 +223,6 @@ function startSeedScan() {
 
   if (seedLine) seedLine.textContent = randomSeed();
 
-  // Сбрасываем отсчёт времени для seed отдельно
   startAt = now();
   setStartAt(startAt);
 }
@@ -211,16 +231,16 @@ function finishAll() {
   setPhase(PHASE.DONE);
   stopAnim();
 
+  // ✅ ВАЖНО: сохраняем награду ОДИН РАЗ
+  saveResultOnce();
+
   if (phaseTextEl) phaseTextEl.textContent = "Analysis complete";
   show(btnView, true);
 
-  // Автосброс: чтобы можно было запускать новый поиск без перезагрузки
   setTimeout(() => {
-    // В DONE оставим кнопку Start (новый цикл), а View пусть остаётся по желанию
     setPhase(PHASE.NONE);
     show(btnStart, true);
     show(btnContinue, false);
-    // btnView оставим как есть (если хочешь — можно скрыть)
     if (seedBox) seedBox.style.display = "none";
     if (timerEl) timerEl.textContent = "0с";
     renderChecked(0);
@@ -235,7 +255,6 @@ function startTicker() {
   tickInterval = setInterval(() => {
     const phase = getPhase();
 
-    // Если вдруг фаза NONE — остановим тикер
     if (phase === PHASE.NONE) {
       clearInterval(tickInterval);
       tickInterval = null;
@@ -245,18 +264,15 @@ function startTicker() {
     const elapsedMs = now() - getStartAt();
     if (timerEl) timerEl.textContent = fmtElapsed(elapsedMs);
 
-    // checked считается стабильно: elapsedSeconds * walletsPerSecond
     const elapsedSeconds = Math.max(0, elapsedMs / 1000);
     const checked = Math.floor(elapsedSeconds * walletsPerSecond);
     renderChecked(checked);
 
     if (phase === PHASE.WALLET) {
       if (elapsedSeconds >= walletSeconds) {
-        // закончили wallet → показываем Continue
         animateGrid(false);
         show(btnContinue, true);
         if (phaseTextEl) phaseTextEl.textContent = "Wallet найден (визуально). Нажми Continue";
-        // останавливаем тикер, чтобы “проверено” не тикало бесконечно
         clearInterval(tickInterval);
         tickInterval = null;
       }
@@ -267,7 +283,6 @@ function startTicker() {
       if (seedLine) seedLine.textContent = randomSeed();
 
       if (elapsedSeconds >= seedSeconds) {
-        // закончили seed → DONE
         clearInterval(tickInterval);
         tickInterval = null;
         finishAll();
@@ -296,7 +311,6 @@ function restore() {
     return;
   }
 
-  // Если была WALLET/SEED — продолжаем с текущими таймингами
   startAt = getStartAt();
 
   if (phase === PHASE.WALLET) {
