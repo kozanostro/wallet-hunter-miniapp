@@ -1,56 +1,71 @@
-// hunt.js — WalletHunter (TON) визуализация
-// Реальных кошельков/сидов НЕ используется.
+// hunt.js — WalletHunter (multi-wallet ready)
+// Визуализация. Реальных кошельков нет.
 
-const TON_ADDR_LEN = 48;
+console.log("HUNT.JS LOADED");
+
+// ================= URL PARAM =================
+const params = new URLSearchParams(window.location.search);
+const WALLET_TYPE = params.get("wallet") || "ton";
+
+// ================= WALLET CONFIG =================
+const WALLET_CONFIG = {
+  ton: {
+    title: "TON Wallet Scan",
+    addrLen: 48,
+  },
+  trust: {
+    title: "Trust Wallet Scan (soon)",
+    addrLen: 40,
+  },
+  metamask: {
+    title: "MetaMask Scan (soon)",
+    addrLen: 40,
+  },
+};
+
+const WALLET = WALLET_CONFIG[WALLET_TYPE] || WALLET_CONFIG.ton;
+
+// ================= BASIC CONFIG =================
+const TON_ADDR_LEN = WALLET.addrLen;
 const SEED_WORDS_COUNT = 24;
 
-// ====== ТЕСТОВЫЕ ТАЙМИНГИ (меняй тут) ======
-const DEFAULT_WALLET_SECONDS = 15; // 10–15 сек тест
-const DEFAULT_SEED_SECONDS = 10;   // 10 сек тест
+// скорости (визуал)
+const SPEED_BASE = 40; // кошельков / сек (x1)
+let speedX = 1;
 
-// ====== СКОРОСТЬ "ПРОВЕРЕНО КОШЕЛЬКОВ" ======
-const SPEED_BASE_WALLETS_PER_SEC = 500; // чтобы цифры выглядели “сочно”
-const SPEED_X = 1; // потом привяжем к покупке x5/x10
-
+// ================= PHASE =================
 const PHASE = {
   NONE: "none",
   WALLET: "wallet",
   SEED: "seed",
+  DONE: "done",
 };
 
-const LS = {
-  phase: "wh_phase",
-  startAt: "wh_startAt",
-  walletSeconds: "wh_wallet_seconds",
-  seedSeconds: "wh_seed_seconds",
-  result: "wh_result",
-};
-
-// ---- DOM ----
+// ================= DOM =================
 const gridEl = document.getElementById("grid");
 const timerEl = document.getElementById("timer");
-const checkedStatsEl = document.getElementById("checkedStats");
 const phaseTextEl = document.getElementById("phaseText");
 const statsEl = document.getElementById("stats");
 
-const btnStart = document.getElementById("btnStart"); // оставим, но цикл будет авто
+const btnStart = document.getElementById("btnStart");
+const btnContinue = document.getElementById("btnContinue");
+const btnView = document.getElementById("btnView");
+
 const seedBox = document.getElementById("seedBox");
 const seedLine = document.getElementById("seedLine");
 
-// ---- state ----
+// ================= STATE =================
+let startAt = 0;
+let checkedWallets = 0;
 let animInterval = null;
 let tickInterval = null;
 
-let walletSeconds = DEFAULT_WALLET_SECONDS;
-let seedSeconds = DEFAULT_SEED_SECONDS;
+// ================= UTIL =================
+function now() {
+  return Date.now();
+}
 
-let startAt = 0;
-let walletsPerSecond = SPEED_BASE_WALLETS_PER_SEC * SPEED_X;
-
-// ---- util ----
-function now() { return Date.now(); }
-
-function fmtElapsed(ms) {
+function fmtTime(ms) {
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   const r = s % 60;
@@ -62,9 +77,8 @@ function randomChar() {
   return chars[Math.floor(Math.random() * chars.length)];
 }
 
-// ---- grid ----
+// ================= GRID =================
 function makeGrid() {
-  if (!gridEl) return;
   gridEl.innerHTML = "";
   for (let i = 0; i < TON_ADDR_LEN; i++) {
     const d = document.createElement("div");
@@ -74,20 +88,21 @@ function makeGrid() {
   }
 }
 
-function startGridAnim() {
-  stopGridAnim();
-  if (!gridEl) return;
+function animateGrid() {
+  stopAnim();
   animInterval = setInterval(() => {
-    for (const c of gridEl.children) c.textContent = randomChar();
+    for (const c of gridEl.children) {
+      c.textContent = randomChar();
+    }
   }, 60);
 }
 
-function stopGridAnim() {
+function stopAnim() {
   if (animInterval) clearInterval(animInterval);
   animInterval = null;
 }
 
-// ---- seed ----
+// ================= SEED =================
 const WORDS = [
   "apple","night","river","gold","stone","ocean","green","laser",
   "silent","shadow","planet","matrix","crypto","wolf","orbit",
@@ -103,173 +118,101 @@ function randomSeed() {
   return arr.join(" ");
 }
 
-// ---- storage helpers ----
-function setPhase(p) { localStorage.setItem(LS.phase, p); }
-function getPhase() { return localStorage.getItem(LS.phase) || PHASE.NONE; }
-
-function setStartAt(ts) { localStorage.setItem(LS.startAt, String(ts)); }
-function getStartAt() {
-  const v = Number(localStorage.getItem(LS.startAt) || "0");
-  return v > 0 ? v : now();
-}
-
-function loadDurations() {
-  walletSeconds = Number(localStorage.getItem(LS.walletSeconds) || DEFAULT_WALLET_SECONDS);
-  seedSeconds = Number(localStorage.getItem(LS.seedSeconds) || DEFAULT_SEED_SECONDS);
-  if (!Number.isFinite(walletSeconds) || walletSeconds <= 0) walletSeconds = DEFAULT_WALLET_SECONDS;
-  if (!Number.isFinite(seedSeconds) || seedSeconds <= 0) seedSeconds = DEFAULT_SEED_SECONDS;
-}
-
-// ---- reward фиксируем один раз ----
-function randomRewardTon() {
-  const r = Math.random();
-  let val = 0;
-  if (r < 0.80) val = +(Math.random() * 0.5).toFixed(3);
-  else if (r < 0.97) val = +(0.5 + Math.random() * 2).toFixed(3);
-  else val = +(2.5 + Math.random() * 5).toFixed(3);
-  return val;
-}
-
-function saveResultOnce() {
-  if (localStorage.getItem(LS.result)) return;
-  const payload = { reward_ton: randomRewardTon(), ts: now() };
-  localStorage.setItem(LS.result, JSON.stringify(payload));
-}
-
-// ---- ui ----
-function renderChecked(elapsedSec) {
-  const checked = Math.floor(elapsedSec * walletsPerSecond);
-  if (statsEl) statsEl.textContent = `Checked wallets: ${checked.toLocaleString()}`;
-  if (checkedStatsEl) checkedStatsEl.textContent = `Проверено кошельков: ${checked.toLocaleString()}`;
-}
-
-function showStart(v) { if (btnStart) btnStart.style.display = v ? "inline-block" : "none"; }
-function showSeed(v) { if (seedBox) seedBox.style.display = v ? "block" : "none"; }
-
-// ---- phases ----
-function startWalletPhase() {
-  loadDurations();
-
-  // новый цикл — чистим прошлую награду
-  localStorage.removeItem(LS.result);
-
-  setPhase(PHASE.WALLET);
+// ================= CORE =================
+function startWalletScan() {
   startAt = now();
-  setStartAt(startAt);
+  checkedWallets = 0;
 
-  if (phaseTextEl) phaseTextEl.textContent = "TON Wallet Scan";
-  showStart(false);
-  showSeed(false);
+  localStorage.setItem("wh_phase", PHASE.WALLET);
+  localStorage.setItem("wh_startAt", startAt);
 
-  startGridAnim();
+  btnStart.style.display = "none";
+  btnContinue.style.display = "none";
+  btnView.style.display = "none";
+  seedBox.style.display = "none";
+
+  phaseTextEl.textContent = WALLET.title;
+
+  animateGrid();
   startTicker();
 }
 
-function startSeedPhase() {
-  setPhase(PHASE.SEED);
-  startAt = now();
-  setStartAt(startAt);
+function startSeedScan() {
+  localStorage.setItem("wh_phase", PHASE.SEED);
 
-  stopGridAnim();
-  if (phaseTextEl) phaseTextEl.textContent = "Seed phrase analysis";
-  showSeed(true);
-  if (seedLine) seedLine.textContent = randomSeed();
+  btnContinue.style.display = "none";
+  seedBox.style.display = "block";
 
-  startTicker();
+  phaseTextEl.textContent = "Seed phrase analysis";
+  seedLine.textContent = randomSeed();
 }
 
-function finishAndGoResult() {
-  stopGridAnim();
-  stopTicker();
+function finishAll() {
+  stopAnim();
+  localStorage.setItem("wh_phase", PHASE.DONE);
 
-  saveResultOnce();
-
-  // авто-переход на результат
-  location.href = "result.html";
+  btnView.style.display = "inline-block";
+  phaseTextEl.textContent = "Analysis complete";
 }
 
-// ---- ticker ----
-function stopTicker() {
-  if (tickInterval) clearInterval(tickInterval);
-  tickInterval = null;
-}
-
+// ================= TICKER =================
 function startTicker() {
   if (tickInterval) return;
 
   tickInterval = setInterval(() => {
-    const phase = getPhase();
-    const elapsedMs = now() - getStartAt();
-    const elapsedSec = Math.max(0, elapsedMs / 1000);
+    const elapsed = now() - startAt;
+    timerEl.textContent = fmtTime(elapsed);
 
-    if (timerEl) timerEl.textContent = fmtElapsed(elapsedMs);
-    renderChecked(elapsedSec);
+    const delta = Math.floor((SPEED_BASE * speedX) / 4);
+    checkedWallets += delta;
 
-    if (phase === PHASE.WALLET) {
-      if (elapsedSec >= walletSeconds) {
-        // авто-переход на SEED
-        startSeedPhase();
-      }
-      return;
-    }
+    statsEl.textContent =
+      `Проверено кошельков: ${checkedWallets.toLocaleString()}`;
+
+    const phase = localStorage.getItem("wh_phase");
 
     if (phase === PHASE.SEED) {
-      if (seedLine) seedLine.textContent = randomSeed();
-      if (elapsedSec >= seedSeconds) {
-        finishAndGoResult();
-      }
-      return;
+      seedLine.textContent = randomSeed();
     }
   }, 250);
 }
 
-// ---- restore ----
+// ================= RESTORE =================
 function restore() {
   makeGrid();
-  loadDurations();
 
-  const phase = getPhase();
-  startAt = getStartAt();
+  speedX = Number(localStorage.getItem("wh_speed_x") || "1");
+
+  const phase = localStorage.getItem("wh_phase") || PHASE.NONE;
+  startAt = Number(localStorage.getItem("wh_startAt") || now());
+
+  phaseTextEl.textContent = WALLET.title;
 
   if (phase === PHASE.NONE) {
-    if (phaseTextEl) phaseTextEl.textContent = "TON Wallet Scan";
-    showStart(true);
-    showSeed(false);
-    if (timerEl) timerEl.textContent = "0с";
-    if (statsEl) statsEl.textContent = "";
-    if (checkedStatsEl) checkedStatsEl.textContent = "";
-    stopGridAnim();
-    stopTicker();
+    btnStart.style.display = "inline-block";
+    timerEl.textContent = "0с";
+    statsEl.textContent = "";
     return;
   }
 
-  // если был запущен — продолжаем
-  showStart(false);
-
-  if (phase === PHASE.WALLET) {
-    if (phaseTextEl) phaseTextEl.textContent = "TON Wallet Scan";
-    showSeed(false);
-    startGridAnim();
-    startTicker();
-    return;
-  }
+  animateGrid();
+  startTicker();
 
   if (phase === PHASE.SEED) {
-    stopGridAnim();
-    if (phaseTextEl) phaseTextEl.textContent = "Seed phrase analysis";
-    showSeed(true);
-    if (seedLine && !seedLine.textContent) seedLine.textContent = randomSeed();
-    startTicker();
-    return;
+    seedBox.style.display = "block";
+    seedLine.textContent = randomSeed();
   }
 
-  // если что-то странное
-  localStorage.setItem(LS.phase, PHASE.NONE);
-  restore();
+  if (phase === PHASE.DONE) {
+    finishAll();
+  }
 }
 
-// ---- buttons ----
-if (btnStart) btnStart.addEventListener("click", startWalletPhase);
+// ================= BUTTONS =================
+btnStart?.addEventListener("click", startWalletScan);
+btnContinue?.addEventListener("click", startSeedScan);
+btnView?.addEventListener("click", () => {
+  location.href = "result.html";
+});
 
-// автозапуск не делаем — пусть человек жмёт Start
 restore();
