@@ -1,100 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Результат</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="../css/main.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>WalletHunter Result</title>
   <style>
-    .wrap { max-width: 780px; margin: 0 auto; }
-    .card { border: 1px solid #00ff99; border-radius: 12px; padding: 14px; margin: 14px 0; }
-    .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
-    .muted { opacity: 0.75; }
-    .big { font-size: 20px; font-weight: 700; }
-    .navBar {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      padding: 10px;
-      background: rgba(11,11,11,0.95);
-      border-top: 1px solid #00ff99;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    }
-    .navBar button { min-width: 160px; }
-    body { padding-bottom: 80px; }
+    body{font-family:Arial,sans-serif;margin:12px;background:#0b0f14;color:#e7eef7}
+    .card{border:1px solid #233243;border-radius:12px;padding:12px;background:#0f1622}
+    .big{font-size:28px;font-weight:700;margin-top:6px}
+    .small{font-size:12px;color:#9fb3c8}
+    button{padding:10px 12px;border-radius:10px;border:1px solid #2b3a4a;background:#101826;color:#e7eef7;cursor:pointer}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h2>Результат</h2>
 
-    <div class="card">
-      <div class="muted">Потенциальный кошелёк (частично скрыт)</div>
-      <div class="big" id="addr">—</div>
-    </div>
+  <div class="card">
+    <div class="small">Награда (визуально)</div>
+    <div id="reward" class="big">0 TON</div>
+    <div id="note" class="small" style="margin-top:8px;"></div>
 
-    <div class="card">
-      <div class="muted">Найдено </div>
-      <div class="big" id="reward">—</div>
-      <div class="muted" id="note">Выплаты подключим позже через админку и условия.</div>
-      <div class="row">
-        <button id="btnTake">ЗАБРАТЬ</button>
-        <button id="btnReset">СБРОСИТЬ ПОИСК</button>
-      </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="btnBack">⬅️ Назад</button>
+      <button id="btnClear">Обнулить</button>
     </div>
   </div>
 
-  <div class="navBar">
-    <button onclick="location.href='dashboard.html'">Возврат на главную</button>
-    <button onclick="location.href='dashboard.html'">Возврат в кошелёк</button>
-  </div>
+<script>
+  const LS_RESULT = "wh_result";
 
-  <script>
-    // Берём "фейковый" адрес, маскируем края для показа
-    const addrRaw = localStorage.getItem("hunt_fake_addr") || "";
-    function maskAddr(a) {
-      if (!a || a.length < 12) return "—";
-      const first = a.slice(0, 4);
-      const last = a.slice(-4);
-      return `${first} … … … ${last}`;
+  function isReload() {
+    try {
+      const nav = performance.getEntriesByType('navigation')[0];
+      if (nav) return nav.type === 'reload';
+      // fallback старый
+      return performance.navigation && performance.navigation.type === 1;
+    } catch (e) {
+      return false;
     }
-    document.getElementById("addr").textContent = maskAddr(addrRaw);
+  }
 
-    // Пока награда — тестовая (потом будет рассчитываться от % и параметров)
-    // Сохраняем в localStorage, чтобы на dashboard потом показать "выиграл/забрал"
-    let reward = localStorage.getItem("hunt_reward") || "";
-    if (!reward) {
-      // простая рандомизация для теста
-      const options = ["0.5 TON", "1 TON", "5 TON", "20 USDT", "0 TON"];
-      reward = options[Math.floor(Math.random() * options.length)];
-      localStorage.setItem("hunt_reward", reward);
+  function setReward(ton, note="") {
+    document.getElementById("reward").textContent = `${Number(ton||0).toFixed(3)} TON`;
+    document.getElementById("note").textContent = note;
+  }
+
+  function clearReward() {
+    localStorage.removeItem(LS_RESULT);
+    setReward(0, "Обнулено (страница была обновлена или нажали кнопку).");
+  }
+
+  // ✅ Если обновили страницу — обнуляем
+  if (isReload()) {
+    clearReward();
+  } else {
+    // обычный заход — читаем сохранённое
+    const raw = localStorage.getItem(LS_RESULT);
+    if (!raw) {
+      setReward(0, "Нет сохранённого результата (начни новый поиск).");
+    } else {
+      try {
+        const data = JSON.parse(raw);
+        setReward(data.reward_ton || 0, "Результат зафиксирован (обновление страницы сбросит его).");
+      } catch (e) {
+        clearReward();
+      }
     }
-    document.getElementById("reward").textContent = reward;
+  }
 
-    document.getElementById("btnTake").onclick = () => {
-      // "забрать" = записать в историю и обнулить reward
-      const taken = localStorage.getItem("taken_rewards") || "[]";
-      const arr = JSON.parse(taken);
-      arr.push({ reward, ts: Date.now() });
-      localStorage.setItem("taken_rewards", JSON.stringify(arr));
+  document.getElementById("btnBack").addEventListener("click", () => {
+    location.href = "hunt.html";
+  });
 
-      localStorage.setItem("hunt_reward", "");
-      document.getElementById("reward").textContent = "0";
-      alert("Готово. ");
-    };
+  document.getElementById("btnClear").addEventListener("click", () => {
+    clearReward();
+  });
+</script>
 
-    document.getElementById("btnReset").onclick = () => {
-      // полный сброс цикла hunt
-      localStorage.removeItem("hunt_phase");
-      localStorage.removeItem("hunt_wallet_endAt");
-      localStorage.removeItem("hunt_seed_endAt");
-      localStorage.removeItem("hunt_fake_addr");
-      localStorage.removeItem("hunt_fake_seed");
-      localStorage.removeItem("hunt_reward");
-      location.href = "hunt.html";
-    };
-  </script>
 </body>
 </html>
-
