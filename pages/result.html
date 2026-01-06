@@ -16,23 +16,24 @@
 
   <div class="card">
     <div class="small">Награда (визуально)</div>
-    <div id="reward" class="big">0 TON</div>
+    <div id="reward" class="big">0.000 TON</div>
     <div id="note" class="small" style="margin-top:8px;"></div>
 
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="btnNew">🔁 Начать новый поиск</button>
       <button id="btnBack">⬅️ Назад</button>
-      <button id="btnClear">Обнулить</button>
     </div>
   </div>
 
 <script>
   const LS_RESULT = "wh_result";
+  const LS_PHASE = "wh_phase";
+  const LS_START = "wh_startAt";
 
   function isReload() {
     try {
       const nav = performance.getEntriesByType('navigation')[0];
       if (nav) return nav.type === 'reload';
-      // fallback старый
       return performance.navigation && performance.navigation.type === 1;
     } catch (e) {
       return false;
@@ -44,35 +45,38 @@
     document.getElementById("note").textContent = note;
   }
 
-  function clearReward() {
+  function clearAll() {
     localStorage.removeItem(LS_RESULT);
-    setReward(0, "Обнулено (страница была обновлена или нажали кнопку).");
+    localStorage.setItem(LS_PHASE, "none");
+    localStorage.setItem(LS_START, "0");
   }
 
-  // ✅ Если обновили страницу — обнуляем
+  // ✅ если обновили result.html — сброс награды
   if (isReload()) {
-    clearReward();
+    clearAll();
+    setReward(0, "Обновление страницы = сброс результата.");
   } else {
-    // обычный заход — читаем сохранённое
     const raw = localStorage.getItem(LS_RESULT);
     if (!raw) {
-      setReward(0, "Нет сохранённого результата (начни новый поиск).");
+      setReward(0, "Нет сохранённого результата (запусти поиск).");
     } else {
       try {
         const data = JSON.parse(raw);
-        setReward(data.reward_ton || 0, "Результат зафиксирован (обновление страницы сбросит его).");
+        setReward(data.reward_ton || 0, "Результат зафиксирован. Refresh = сброс.");
       } catch (e) {
-        clearReward();
+        clearAll();
+        setReward(0, "Ошибка данных → сброс.");
       }
     }
   }
 
-  document.getElementById("btnBack").addEventListener("click", () => {
+  document.getElementById("btnNew").addEventListener("click", () => {
+    clearAll();
     location.href = "hunt.html";
   });
 
-  document.getElementById("btnClear").addEventListener("click", () => {
-    clearReward();
+  document.getElementById("btnBack").addEventListener("click", () => {
+    location.href = "hunt.html";
   });
 </script>
 
