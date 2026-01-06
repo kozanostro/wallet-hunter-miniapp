@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Выбор кошелька</title>
+  <style>
+    body{margin:0;font-family:Arial,sans-serif;background:#0b0f14;color:#e7eef7}
+    .wrap{max-width:720px;margin:0 auto;padding:16px}
+    .top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+    .logo{width:44px;height:44px;border-radius:12px;background:#101826;border:1px solid #233243;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .title{font-size:18px;font-weight:700}
+    .sub{font-size:12px;color:#9fb3c8;margin-top:2px}
+    .grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+    .card{
+      border:1px solid #233243;border-radius:14px;background:#0f1622;
+      padding:12px;display:flex;gap:12px;align-items:center
+    }
+    .icon{
+      width:52px;height:52px;border-radius:14px;background:#101826;border:1px solid #233243;
+      display:flex;align-items:center;justify-content:center;font-weight:800
+    }
+    .meta{flex:1}
+    .name{font-size:15px;font-weight:700}
+    .hint{font-size:12px;color:#9fb3c8;margin-top:4px}
+    .btn{
+      padding:10px 12px;border-radius:12px;border:1px solid #2b3a4a;background:#101826;color:#e7eef7;
+      cursor:pointer;font-weight:700
+    }
+    .btn:active{transform:scale(.99)}
+    .soon{opacity:.55}
+    .btn[disabled]{opacity:.45;cursor:not-allowed}
+    .foot{display:flex;gap:10px;margin-top:14px}
+    .linkbtn{flex:1;padding:10px 12px;border-radius:12px;border:1px solid #2b3a4a;background:#101826;color:#e7eef7;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="logo">WH</div>
+      <div>
+        <div class="title">Выбери кошелёк для поиска</div>
+        <div class="sub">TON доступен сейчас. Trust Wallet и MetaMask — скоро.</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- TON -->
+      <div class="card">
+        <div class="icon">TON</div>
+        <div class="meta">
+          <div class="name">TON Wallet</div>
+          <div class="hint">Поиск TON-адресов (визуализация)</div>
+        </div>
+        <button class="btn" id="btnTon">Выбрать</button>
+      </div>
+
+      <!-- Trust Wallet -->
+      <div class="card soon">
+        <div class="icon">TW</div>
+        <div class="meta">
+          <div class="name">Trust Wallet</div>
+          <div class="hint">Скоро</div>
+        </div>
+        <button class="btn" disabled>Скоро</button>
+      </div>
+
+      <!-- MetaMask -->
+      <div class="card soon">
+        <div class="icon">MM</div>
+        <div class="meta">
+          <div class="name">MetaMask</div>
+          <div class="hint">Скоро</div>
+        </div>
+        <button class="btn" disabled>Скоро</button>
+      </div>
+    </div>
+
+    <div class="foot">
+      <button class="linkbtn" id="btnBack">Назад</button>
+      <button class="linkbtn" id="btnHome">На главную</button>
+    </div>
+  </div>
+
+<script>
+  // сюда будем потом добавлять выбор других кошельков
+  document.getElementById("btnTon").addEventListener("click", () => {
+    // Переход в hunt.html и передаём тип кошелька
+    location.href = "hunt.html?wallet=ton";
+  });
+
+  document.getElementById("btnBack").addEventListener("click", () => {
+    // возвращаемся туда, откуда пришли
+    history.back();
+  });
+
+  document.getElementById("btnHome").addEventListener("click", () => {
+    // если у тебя главная это index.html — ок.
+    // если главная другая — скажешь, поменяем.
+    location.href = "../index.html";
+  });
+</script>
+</body>
+</html>
