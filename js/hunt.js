@@ -1,13 +1,18 @@
-// hunt.js — WalletHunter (TON) | VISUAL ONLY
+// hunt.js — WalletHunter (TON) — визуализация 2 фаз + стабильные состояния
+// Фаза 1: поиск кошелька (grid бегает + счётчик растёт)
+// Фаза 2: сид-фразы (grid заморожен + счётчик НЕ растёт)
 
 const TON_ADDR_LEN = 48;
 const SEED_WORDS_COUNT = 24;
 
-// визуальная скорость счётчика (кошельков/сек)
-const SPEED_BASE = 60; // x1
+// --- тестовые тайминги (можно менять в localStorage) ---
+const DEFAULT_WALLET_MS = 15 * 1000; // 15 секунд (тест)
+const DEFAULT_SEED_MS   = 12 * 1000; // 12 секунд (тест)
 
-// визуальная длительность фазы кошелька (для теста)
-const DEFAULT_WALLET_MS = 15 * 1000; // 15 секунд
+// --- скорость визуального счётчика (кошельков/сек) ---
+const SPEED_BASE = 30; // x1
+// множитель можно хранить как wh_speed_x в localStorage
+// например wh_speed_x=5 даст x5
 
 const PHASE = {
   NONE: "none",
@@ -21,6 +26,7 @@ const gridEl = document.getElementById("grid");
 const timerEl = document.getElementById("timer");
 const phaseTextEl = document.getElementById("phaseText");
 const statsEl = document.getElementById("stats");
+const checkedStatsEl = document.getElementById("checkedStats");
 
 const btnStart = document.getElementById("btnStart");
 const btnContinue = document.getElementById("btnContinue");
@@ -29,51 +35,41 @@ const btnView = document.getElementById("btnView");
 const seedBox = document.getElementById("seedBox");
 const seedLine = document.getElementById("seedLine");
 
-// ---- safety: если чего-то нет в HTML, сразу видно ----
-function must(el, name) {
-  if (!el) throw new Error(`Hunt.html: не найден элемент id="${name}"`);
-  return el;
+// ---------------- storage helpers ----------------
+function nowMs() { return Date.now(); }
+
+function getWalletDurationMs() {
+  return Number(localStorage.getItem("hunt_wallet_duration_ms") || DEFAULT_WALLET_MS);
 }
-must(gridEl, "grid");
-must(timerEl, "timer");
-must(phaseTextEl, "phaseText");
-must(statsEl, "stats");
-must(btnStart, "btnStart");
-must(btnContinue, "btnContinue");
-must(btnView, "btnView");
-must(seedBox, "seedBox");
-must(seedLine, "seedLine");
-
-// ---- storage helpers ----
-function now() { return Date.now(); }
-function setPhase(p) { localStorage.setItem("wh_phase", p); }
-function getPhase() { return localStorage.getItem("wh_phase") || PHASE.NONE; }
-
-function getWalletMs() {
-  const v = Number(localStorage.getItem("wh_wallet_ms") || DEFAULT_WALLET_MS);
-  return Number.isFinite(v) ? v : DEFAULT_WALLET_MS;
+function getSeedDurationMs() {
+  return Number(localStorage.getItem("hunt_seed_duration_ms") || DEFAULT_SEED_MS);
 }
-
 function getSpeedX() {
-  const v = Number(localStorage.getItem("wh_speed_x") || "1");
-  return Number.isFinite(v) && v > 0 ? v : 1;
+  const x = Number(localStorage.getItem("wh_speed_x") || "1");
+  return isFinite(x) && x > 0 ? x : 1;
 }
 
-function fmtTime(ms) {
+function setPhase(p) { localStorage.setItem("hunt_phase", p); }
+function getPhase() { return localStorage.getItem("hunt_phase") || PHASE.NONE; }
+
+// ---------------- time formatting ----------------
+function fmtMs(ms) {
   if (ms < 0) ms = 0;
-  const s = Math.floor(ms / 1000);
+  const s = Math.ceil(ms / 1000);
   const m = Math.floor(s / 60);
   const r = s % 60;
-  return m > 0 ? `${m}м ${r}с` : `${r}с`;
+  if (m <= 0) return `${r}с`;
+  return `${m}м ${r}с`;
 }
 
-// ---- grid ----
+// ---------------- GRID ----------------
 function randomChar() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   return chars[Math.floor(Math.random() * chars.length)];
 }
 
 function makeGrid() {
+  if (!gridEl) return;
   gridEl.innerHTML = "";
   for (let i = 0; i < TON_ADDR_LEN; i++) {
     const d = document.createElement("div");
@@ -84,279 +80,357 @@ function makeGrid() {
 }
 
 function setMaskedEdges() {
+  if (!gridEl) return;
   const cells = [...gridEl.children];
-  for (const c of cells) c.classList.remove("mask");
+  for (let i = 0; i < cells.length; i++) cells[i].classList.remove("mask");
+
+  // первые 4 и последние 4 скрываем
   for (let i = 0; i < 4; i++) {
     if (cells[i]) cells[i].classList.add("mask");
     if (cells[cells.length - 1 - i]) cells[cells.length - 1 - i].classList.add("mask");
   }
 }
 
-// ---- seed words ----
-const WORDS_MAIN = [
+function setGridFromString(addr) {
+  if (!gridEl) return;
+  if (!addr || addr.length !== TON_ADDR_LEN) return;
+  [...gridEl.children].forEach((c, i) => { c.textContent = addr[i]; });
+}
+
+// ---------------- SEED WORDS ----------------
+// База 50+ слов
+const WORDS_BASE = [
   "apple","night","river","gold","stone","ocean","green","laser","silent","shadow",
   "planet","matrix","crypto","wolf","orbit","signal","vector","random","vault","hunter",
-  "secure","token","native","future","cloud","ember","drift","focus","glory","binary",
-  "nebula","hammer","comet","cipher","satoshi","bridge","castle","rocket","frost","pixel",
-  "mirror","quantum","zephyr","mosaic","fusion","anchor","silver","dragon","opal","storm",
-  "nova","prism","raven","tiger","delta","omega","alpha","gamma"
+  "secure","token","native","future","cloud","ember","drift","glory","focus","binary",
+  "mercury","saturn","lunar","solar","comet","nebula","quartz","copper","silver","carbon",
+  "fusion","photon","nexus","cipher","wallet","miners","ledger","shield","atomic","quantum",
+  "engine","rocket","hazard","dragon","oracle","zenith","flux","prism","vertex","kernel"
 ];
 
-// 30 слов по 3 буквы
+// + 30 слов из 3 букв
 const WORDS_3 = [
-  "arc","sun","sky","toy","mix","ink","ton","cap","map","run",
-  "jet","zip","log","box","key","pin","ice","fog","win","ram",
-  "cpu","gpu","lan","wan","hex","bit","bug","dev","bot","api"
+  "ton","dex","bot","air","ice","sky","sun","jet","zip","key",
+  "app","api","rpc","cpu","gpu","ram","log","uid","win","run",
+  "fee","buy","sell","pay","mix","max","min","top","low","mid"
 ];
 
-// 30 слов по 4 буквы
+// + 30 слов из 4 букв
 const WORDS_4 = [
-  "node","seed","scan","mint","coin","hash","salt","lock","bank","data",
-  "peer","link","ring","fork","meme","zero","time","idle","fast","slow",
-  "rank","flow","path","open","play","hunt","grid","mask","role","user"
+  "seed","scan","hunt","mask","grid","node","swap","mint","send","recv",
+  "link","hash","salt","keys","coin","play","work","open","load","save",
+  "time","lock","fast","slow","safe","zero","full","test","prod","next"
 ];
 
-const WORDS = [...WORDS_MAIN, ...WORDS_3, ...WORDS_4];
+const WORDS = [...WORDS_BASE, ...WORDS_3, ...WORDS_4];
 
-function randomSeed() {
+function randomSeed(n = SEED_WORDS_COUNT) {
   const arr = [];
-  for (let i = 0; i < SEED_WORDS_COUNT; i++) {
+  for (let i = 0; i < n; i++) {
     arr.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
   }
   return arr.join(" ");
 }
 
-// ---- runtime ----
-let animInterval = null;
-let tickInterval = null;
-let seedInterval = null;
+// ---------------- intervals / runtime state ----------------
+let walletInterval = null; // grid animation
+let seedInterval = null;   // seed animation
+let tickInterval = null;   // global ticker
 
-let startAtMs = 0;
-let endAtMs = 0;
 let checkedWallets = 0;
 
-function stopAllIntervals() {
-  if (animInterval) clearInterval(animInterval);
+// ---------------- stop helpers ----------------
+function stopWalletAnimation() {
+  if (walletInterval) clearInterval(walletInterval);
+  walletInterval = null;
+}
+function stopSeedAnimation() {
+  if (seedInterval) clearInterval(seedInterval);
+  seedInterval = null;
+}
+function stopTicker() {
   if (tickInterval) clearInterval(tickInterval);
-  if (seedInterval) clearInterval(seedInterval);
-  animInterval = tickInterval = seedInterval = null;
+  tickInterval = null;
+}
+function stopAll() {
+  stopWalletAnimation();
+  stopSeedAnimation();
+  stopTicker();
 }
 
-function animateGrid() {
-  if (animInterval) clearInterval(animInterval);
-  animInterval = setInterval(() => {
-    for (const c of gridEl.children) c.textContent = randomChar();
+// ---------------- animations ----------------
+function runWalletAnimation() {
+  stopWalletAnimation();
+  walletInterval = setInterval(() => {
+    if (!gridEl) return;
+    for (const cell of gridEl.children) cell.textContent = randomChar();
   }, 60);
 }
 
-function startSeedAnimationFast() {
-  // x2 быстрее чем было (раньше ~120ms)
-  if (seedInterval) clearInterval(seedInterval);
+// сид-фразы быстрее x2: было условно 120ms, делаем 60ms
+function runSeedAnimationFast() {
+  stopSeedAnimation();
   seedInterval = setInterval(() => {
-    seedLine.textContent = randomSeed();
+    if (seedLine) seedLine.textContent = randomSeed(SEED_WORDS_COUNT);
   }, 60);
 }
 
-// ---- phases ----
-function resetUI() {
-  btnStart.style.display = "inline-block";
-  btnContinue.style.display = "none";
-  btnView.style.display = "none";
-  seedBox.style.display = "none";
-  timerEl.textContent = "—";
-  statsEl.textContent = "Проверено кошельков: 0";
-  phaseTextEl.textContent = "Фаза 1: поиск кошелька";
-}
+// ---------------- phase actions ----------------
+function resetToStartState() {
+  stopAll();
+  setPhase(PHASE.NONE);
 
-function startWalletScan() {
-  // полный сброс
-  stopAllIntervals();
-  makeGrid();
+  localStorage.removeItem("hunt_wallet_endAt");
+  localStorage.removeItem("hunt_seed_endAt");
+  localStorage.removeItem("hunt_fake_addr");
+  localStorage.removeItem("hunt_fake_seed");
 
   checkedWallets = 0;
-  startAtMs = now();
-  endAtMs = startAtMs + getWalletMs();
 
-  localStorage.setItem("wh_startAt", String(startAtMs));
-  localStorage.setItem("wh_endAt", String(endAtMs));
-  localStorage.setItem("wh_checked", "0");
-  setPhase(PHASE.WALLET_RUNNING);
+  if (btnStart) {
+    btnStart.style.display = "inline-block";
+    btnStart.textContent = "СТАРТ";
+  }
+  if (btnContinue) btnContinue.style.display = "none";
+  if (btnView) btnView.style.display = "none";
+  if (seedBox) seedBox.style.display = "none";
 
-  btnStart.style.display = "none";
-  btnContinue.style.display = "none";
-  btnView.style.display = "none";
-  seedBox.style.display = "none";
-
-  phaseTextEl.textContent = "Фаза 1: поиск кошелька";
-  timerEl.textContent = "0с";
-  statsEl.textContent = "Проверено кошельков: 0";
-
-  animateGrid();
-  startTicker();
+  if (phaseTextEl) phaseTextEl.textContent = "Фаза 1: поиск кошелька";
+  if (timerEl) timerEl.textContent = "—";
+  if (statsEl) statsEl.textContent = "";
+  if (checkedStatsEl) checkedStatsEl.textContent = "Проверено кошельков: 0";
 }
 
-function finishWalletScan() {
-  // фиксируем найденный адрес (визуально)
-  const addr = [...gridEl.children].map(x => x.textContent).join("");
-  localStorage.setItem("wh_fake_addr", addr);
+function startWalletRun() {
+  // старт новой сессии
+  checkedWallets = 0;
+  if (checkedStatsEl) checkedStatsEl.textContent = "Проверено кошельков: 0";
+  if (statsEl) statsEl.textContent = "";
+
+  const endAt = nowMs() + getWalletDurationMs();
+  localStorage.setItem("hunt_wallet_endAt", String(endAt));
+  setPhase(PHASE.WALLET_RUNNING);
+
+  if (btnStart) btnStart.style.display = "none";
+  if (btnContinue) btnContinue.style.display = "none";
+  if (btnView) btnView.style.display = "none";
+  if (seedBox) seedBox.style.display = "none";
+
+  if (phaseTextEl) phaseTextEl.textContent = "Фаза 1: поиск кошелька";
+  runWalletAnimation();
+  ensureTicker();
+}
+
+function finishWalletRun() {
+  stopWalletAnimation();
+
+  // сохраняем финальный "адрес" (визуальный)
+  let addr = "";
+  if (gridEl) addr = [...gridEl.children].map(x => x.textContent).join("");
+  localStorage.setItem("hunt_fake_addr", addr);
 
   setPhase(PHASE.WALLET_DONE);
   setMaskedEdges();
 
-  btnContinue.style.display = "inline-block";
-  phaseTextEl.textContent = "Фаза 1 завершена: найден потенциальный кошелёк";
-  timerEl.textContent = "готово";
+  if (btnContinue) btnContinue.style.display = "inline-block";
+  if (phaseTextEl) phaseTextEl.textContent = "Фаза 1 завершена: найден потенциальный кошелёк";
+  if (timerEl) timerEl.textContent = "готово";
 }
 
-function startSeedScan() {
+function startSeedRun() {
+  // seed начинается — кошелёк должен быть заморожен (НЕ бегать)
+  stopWalletAnimation();
+
+  const endAt = nowMs() + getSeedDurationMs();
+  localStorage.setItem("hunt_seed_endAt", String(endAt));
   setPhase(PHASE.SEED_RUNNING);
 
-  btnContinue.style.display = "none";
-  btnView.style.display = "none";
-  seedBox.style.display = "block";
+  if (btnContinue) btnContinue.style.display = "none";
+  if (btnView) btnView.style.display = "none";
 
-  phaseTextEl.textContent = "Фаза 2: подбор сид-фразы (визуализация)";
-  seedLine.textContent = randomSeed();
+  if (seedBox) seedBox.style.display = "block";
+  if (phaseTextEl) phaseTextEl.textContent = "Фаза 2: подбор сид-фраз (визуализация)";
 
-  // СЧЁТЧИК НА СИД-ФРАЗАХ НЕ РАСТЁТ — оставляем как есть
-  startSeedAnimationFast();
+  // восстановим адрес и маску
+  const addr = localStorage.getItem("hunt_fake_addr");
+  setGridFromString(addr);
+  setMaskedEdges();
 
-  // здесь нет auto-finish. Завершение можешь привязать к кнопке/таймеру позже.
-  // Для теста можно вручную вызвать finishSeedScan() из консоли.
+  // старт сид-анимации
+  if (seedLine) seedLine.textContent = randomSeed(SEED_WORDS_COUNT);
+  runSeedAnimationFast();
+
+  ensureTicker();
 }
 
-function finishSeedScan() {
+function finishSeedRun() {
+  stopSeedAnimation();
   setPhase(PHASE.SEED_DONE);
 
-  if (seedInterval) clearInterval(seedInterval);
-  seedInterval = null;
+  if (btnView) btnView.style.display = "inline-block";
+  if (phaseTextEl) phaseTextEl.textContent = "Фаза 2 завершена: готово к проверке";
+  if (timerEl) timerEl.textContent = "готово";
 
-  localStorage.setItem("wh_fake_seed", seedLine.textContent);
+  // сохраняем сид
+  if (seedLine) localStorage.setItem("hunt_fake_seed", seedLine.textContent);
 
-  btnView.style.display = "inline-block";
-  phaseTextEl.textContent = "Фаза 2 завершена: готово к проверке";
-  timerEl.textContent = "готово";
+  // покажем кнопку "Новый поиск"
+  if (btnStart) {
+    btnStart.style.display = "inline-block";
+    btnStart.textContent = "Новый поиск";
+  }
 }
 
-// ---- ticker (только фаза кошелька считает) ----
-function startTicker() {
-  if (tickInterval) clearInterval(tickInterval);
+// ---------------- ticker ----------------
+function ensureTicker() {
+  if (tickInterval) return;
 
   tickInterval = setInterval(() => {
     const phase = getPhase();
 
-    if (phase !== PHASE.WALLET_RUNNING) return;
+    // Фаза 1: таймер ДО конца + счётчик растёт
+    if (phase === PHASE.WALLET_RUNNING) {
+      const endAt = Number(localStorage.getItem("hunt_wallet_endAt") || 0);
+      const left = endAt - nowMs();
+      if (timerEl) timerEl.textContent = fmtMs(left);
 
-    const elapsed = now() - startAtMs;
-    timerEl.textContent = fmtTime(elapsed);
+      // счётчик растёт только тут
+      const speedX = getSpeedX();
+      const perTick = Math.floor((SPEED_BASE * speedX) / 4); // потому что тик 250ms
+      checkedWallets += Math.max(0, perTick);
 
-    const speedX = getSpeedX();
-    const perTick = (SPEED_BASE * speedX) / 4; // tick 250ms
-    checkedWallets += Math.floor(perTick);
+      if (checkedStatsEl) checkedStatsEl.textContent = "Проверено кошельков: " + checkedWallets.toLocaleString();
+      if (statsEl) statsEl.textContent = "";
 
-    localStorage.setItem("wh_checked", String(checkedWallets));
-    statsEl.textContent = "Проверено кошельков: " + checkedWallets.toLocaleString();
+      if (left <= 0) finishWalletRun();
+      return;
+    }
 
-    const left = endAtMs - now();
-    if (left <= 0) finishWalletScan();
+    // Фаза 2: таймер ДО конца + сид крутится, НО счётчик НЕ растёт
+    if (phase === PHASE.SEED_RUNNING) {
+      const endAt = Number(localStorage.getItem("hunt_seed_endAt") || 0);
+      const left = endAt - nowMs();
+      if (timerEl) timerEl.textContent = fmtMs(left);
+
+      // счётчик НЕ меняем
+      if (left <= 0) finishSeedRun();
+      return;
+    }
+
+    // Готовые фазы — тикер можно оставить, но он ничего не делает
+    if (phase === PHASE.WALLET_DONE || phase === PHASE.SEED_DONE || phase === PHASE.NONE) {
+      return;
+    }
   }, 250);
 }
 
-// ---- restore ----
-function restore() {
+// ---------------- restore ----------------
+function restoreState() {
   makeGrid();
 
   const phase = getPhase();
-  startAtMs = Number(localStorage.getItem("wh_startAt") || "0") || now();
-  endAtMs = Number(localStorage.getItem("wh_endAt") || "0") || (startAtMs + getWalletMs());
-  checkedWallets = Number(localStorage.getItem("wh_checked") || "0") || 0;
+
+  // defaults
+  if (checkedStatsEl) checkedStatsEl.textContent = "Проверено кошельков: " + checkedWallets.toLocaleString();
 
   if (phase === PHASE.NONE) {
-    resetUI();
+    resetToStartState();
     return;
   }
 
+  // если шёл поиск кошелька
   if (phase === PHASE.WALLET_RUNNING) {
-    btnStart.style.display = "none";
-    btnContinue.style.display = "none";
-    btnView.style.display = "none";
-    seedBox.style.display = "none";
+    if (btnStart) btnStart.style.display = "none";
+    if (btnContinue) btnContinue.style.display = "none";
+    if (btnView) btnView.style.display = "none";
+    if (seedBox) seedBox.style.display = "none";
+    if (phaseTextEl) phaseTextEl.textContent = "Фаза 1: поиск кошелька";
 
-    phaseTextEl.textContent = "Фаза 1: поиск кошелька";
-    animateGrid();
-    startTicker();
+    runWalletAnimation();
+    ensureTicker();
     return;
   }
 
+  // если кошелёк найден
   if (phase === PHASE.WALLET_DONE) {
-    btnStart.style.display = "none";
-    btnContinue.style.display = "inline-block";
-    btnView.style.display = "none";
-    seedBox.style.display = "none";
+    if (btnStart) btnStart.style.display = "none";
+    if (btnContinue) btnContinue.style.display = "inline-block";
+    if (btnView) btnView.style.display = "none";
+    if (seedBox) seedBox.style.display = "none";
 
-    phaseTextEl.textContent = "Фаза 1 завершена: найден потенциальный кошелёк";
-    timerEl.textContent = "готово";
-    statsEl.textContent = "Проверено кошельков: " + checkedWallets.toLocaleString();
-
-    const addr = localStorage.getItem("wh_fake_addr");
-    if (addr && addr.length === TON_ADDR_LEN) {
-      [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
-    }
+    if (phaseTextEl) phaseTextEl.textContent = "Фаза 1 завершена: найден потенциальный кошелёк";
+    const addr = localStorage.getItem("hunt_fake_addr");
+    setGridFromString(addr);
     setMaskedEdges();
+    if (timerEl) timerEl.textContent = "готово";
     return;
   }
 
+  // если шёл сид-подбор
   if (phase === PHASE.SEED_RUNNING) {
-    btnStart.style.display = "none";
-    btnContinue.style.display = "none";
-    btnView.style.display = "none";
-    seedBox.style.display = "block";
+    if (btnStart) btnStart.style.display = "none";
+    if (btnContinue) btnContinue.style.display = "none";
+    if (btnView) btnView.style.display = "none";
+    if (seedBox) seedBox.style.display = "block";
 
-    phaseTextEl.textContent = "Фаза 2: подбор сид-фразы (визуализация)";
-    timerEl.textContent = "—";
-    statsEl.textContent = "Проверено кошельков: " + checkedWallets.toLocaleString();
+    if (phaseTextEl) phaseTextEl.textContent = "Фаза 2: подбор сид-фраз (визуализация)";
 
-    const addr = localStorage.getItem("wh_fake_addr");
-    if (addr && addr.length === TON_ADDR_LEN) {
-      [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
-    }
+    const addr = localStorage.getItem("hunt_fake_addr");
+    setGridFromString(addr);
     setMaskedEdges();
 
-    seedLine.textContent = localStorage.getItem("wh_fake_seed") || randomSeed();
-    startSeedAnimationFast();
+    runSeedAnimationFast();
+    ensureTicker();
     return;
   }
 
+  // если сид-подбор завершён
   if (phase === PHASE.SEED_DONE) {
-    btnStart.style.display = "none";
-    btnContinue.style.display = "none";
-    btnView.style.display = "inline-block";
-    seedBox.style.display = "block";
+    if (btnContinue) btnContinue.style.display = "none";
+    if (btnView) btnView.style.display = "inline-block";
+    if (seedBox) seedBox.style.display = "block";
 
-    phaseTextEl.textContent = "Фаза 2 завершена: готово к проверке";
-    timerEl.textContent = "готово";
-    statsEl.textContent = "Проверено кошельков: " + checkedWallets.toLocaleString();
+    if (phaseTextEl) phaseTextEl.textContent = "Фаза 2 завершена: готово к проверке";
 
-    const addr = localStorage.getItem("wh_fake_addr");
-    if (addr && addr.length === TON_ADDR_LEN) {
-      [...gridEl.children].forEach((c, i) => c.textContent = addr[i]);
-    }
+    const addr = localStorage.getItem("hunt_fake_addr");
+    setGridFromString(addr);
     setMaskedEdges();
 
-    seedLine.textContent = localStorage.getItem("wh_fake_seed") || randomSeed();
+    const seed = localStorage.getItem("hunt_fake_seed");
+    if (seedLine) seedLine.textContent = seed || randomSeed(SEED_WORDS_COUNT);
+
+    if (timerEl) timerEl.textContent = "готово";
+
+    // кнопка "Новый поиск"
+    if (btnStart) {
+      btnStart.style.display = "inline-block";
+      btnStart.textContent = "Новый поиск";
+    }
     return;
   }
+
+  // если что-то странное — сброс
+  resetToStartState();
 }
 
-// ---- buttons ----
-btnStart.addEventListener("click", startWalletScan);
-btnContinue.addEventListener("click", startSeedScan);
+// ---------------- buttons ----------------
+if (btnStart) {
+  btnStart.addEventListener("click", () => {
+    // если уже закончили — начинаем заново
+    const ph = getPhase();
+    if (ph === PHASE.SEED_DONE) {
+      resetToStartState();
+    }
+    startWalletRun();
+  });
+}
+if (btnContinue) btnContinue.addEventListener("click", startSeedRun);
+if (btnView) {
+  btnView.addEventListener("click", () => {
+    stopSeedAnimation();
+    window.location.href = "result.html";
+  });
+}
 
-// временно: чтобы руками завершать сид-фазу (пока без авто)
-btnView.addEventListener("click", () => {
-  // если сид ещё идёт — завершим перед переходом
-  if (getPhase() === PHASE.SEED_RUNNING) finishSeedScan();
-  location.href = "result.html";
-});
-
-restore();
+// старт
+restoreState();
