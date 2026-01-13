@@ -100,21 +100,7 @@ def games_menu():
     return kb
 
 
-def cabinet_menu():
-    kb = types.InlineKeyboardMarkup()
 
-    domino_cabinet_url = (
-        DOMINO_WEBAPP_URL + "&screen=cabinet"
-        if "?" in DOMINO_WEBAPP_URL else DOMINO_WEBAPP_URL + "?screen=cabinet"
-    )
-    wh_cabinet_url = (
-        WALLETHUNTER_WEBAPP_URL + "&screen=cabinet"
-        if "?" in WALLETHUNTER_WEBAPP_URL else WALLETHUNTER_WEBAPP_URL + "?screen=cabinet"
-    )
-
-    kb.add(types.InlineKeyboardButton("👤 Кабинет Domino", web_app=types.WebAppInfo(url=domino_cabinet_url)))
-    kb.add(types.InlineKeyboardButton("👤 Кабинет WalletHunter", web_app=types.WebAppInfo(url=wh_cabinet_url)))
-    return kb
 
 
 # ===================== HANDLERS =====================
@@ -372,4 +358,5 @@ def cmd_setbal(message):
 if __name__ == "__main__":
     print("Bot started. DB:", DB_PATH)
     bot.infinity_polling(skip_pending=True)
+
 
