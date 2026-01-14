@@ -1,1 +1,0 @@
-# wallet-hunter-miniapp
