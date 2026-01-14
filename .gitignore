@@ -1,0 +1,31 @@
+.evn
+.env
+*.env
+cat > .gitignore << 'EOF'
+# secrets
+.env
+*.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env/
+*.log
+
+# db/runtime
+*.db
+*.sqlite
+*.sqlite3
+
+# os/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# build/cache
+dist/
+build/
+node_modules/
