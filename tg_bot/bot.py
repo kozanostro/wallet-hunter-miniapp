@@ -104,10 +104,18 @@ def games_menu():
 
 
 # ===================== HANDLERS =====================
-@bot.message_handler(commands=["start"])
-def start(message):
-    upsert_user(message.from_user)
-    bot.send_message(message.chat.id, "Главное меню:", reply_markup=main_menu())
+
+@bot.message_handler(func=lambda m: m.text == "◎ Wallet Hunter")
+def open_wallet_hunter(m):
+    url = build_wh_url("cabinet")
+
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(
+        "Открыть Wallet Hunter",
+        web_app=types.WebAppInfo(url=url)
+    ))
+
+    bot.send_message(m.chat.id, "Wallet Hunter", reply_markup=kb)
 
 
 @bot.message_handler(commands=["myid"])
@@ -358,5 +366,6 @@ def cmd_setbal(message):
 if __name__ == "__main__":
     print("Bot started. DB:", DB_PATH)
     bot.infinity_polling(skip_pending=True)
+
 
 
